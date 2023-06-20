@@ -35,7 +35,7 @@ impl<'a, Item, Si: Sink<Item> + Unpin + ?Sized> Reserve<'a, Si, Item> {
     }
 
     pub(super) fn sink_pin_mut(&mut self) -> Option<Pin<&mut Si>> {
-        // Can't use map here due to lifetime issues.
+        // Can't use Option::map here due to lifetime issues.
         match &mut self.sink {
             Some(sink) => Some(Pin::new(sink)),
             None => None,
