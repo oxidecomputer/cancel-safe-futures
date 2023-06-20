@@ -1,0 +1,14 @@
+[package]
+name = "cancel-safe-futures"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+futures-core = { version = "0.3.28", default-features = false }
+futures-sink = { version = "0.3.28", default-features = false }
+futures-util = { version = "0.3.28", default-features = false, features = ["sink"] }
+
+[features]
+default = ["std"]
+std = ["alloc", "futures-core/std", "futures-sink/std", "futures-util/std"]
+alloc = ["futures-core/alloc", "futures-sink/alloc", "futures-util/alloc"]
