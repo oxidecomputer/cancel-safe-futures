@@ -1,5 +1,6 @@
 # cancel-safe-futures
 
+[![Documentation (main)](https://img.shields.io/badge/docs-main-brightgreen)](https://oxidecomputer.github.io/cancel-safe-futures/rustdoc/cancel_safe_futures/)
 [![License](https://img.shields.io/badge/license-Apache-green.svg)](LICENSE-APACHE)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE-MIT)
 
@@ -15,7 +16,7 @@ or similar.
 For a more detailed explanation, see the documentation for [`SinkExt::reserve`].
 
 This crate contains alternative adapters that are designed for use in scenarios where
-cancellatio is expected.
+cancellation is expected.
 
 ## Example
 
