@@ -1,14 +1,12 @@
+use super::{Permit, Reserve};
 use core::{
     future::Future,
     marker::PhantomData,
     pin::Pin,
     task::{Context, Poll},
 };
-
 use futures_core::{ready, FusedFuture};
 use futures_sink::Sink;
-
-use super::{Permit, Reserve};
 
 /// Future for the [`flush_reserve`](super::SinkExt::flush_reserve) method.
 #[derive(Debug)]

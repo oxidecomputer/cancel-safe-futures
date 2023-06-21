@@ -5,11 +5,9 @@ mod permit;
 pub use permit::Permit;
 
 mod reserve;
-pub use reserve::Reserve;
-
 use core::future::Future;
-
 use futures_sink::Sink;
+pub use reserve::Reserve;
 
 /// An extension trait for [`Sink`] that provides some cancel-safe adapters.
 pub trait SinkExt<Item>: Sink<Item> {

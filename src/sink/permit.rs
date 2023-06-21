@@ -1,5 +1,4 @@
 use core::{marker::PhantomData, pin::Pin};
-
 use futures_sink::Sink;
 use futures_util::{sink::Flush, SinkExt};
 
