@@ -8,6 +8,9 @@ futures-core = { version = "0.3.28", default-features = false }
 futures-sink = { version = "0.3.28", default-features = false }
 futures-util = { version = "0.3.28", default-features = false, features = ["sink"] }
 
+[dev-dependencies]
+tokio = { version = "1.28.2", features = ["rt", "macros", "time"] }
+
 [features]
 default = ["std"]
 std = ["alloc", "futures-core/std", "futures-sink/std", "futures-util/std"]
