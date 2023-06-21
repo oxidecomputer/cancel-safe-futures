@@ -100,8 +100,9 @@ pub trait SinkExt<Item>: Sink<Item> {
 
     /// A future that completes once the sink is flushed, and an item is ready to be sent to it.
     ///
-    /// This is similar to [`reserve`](SinkExt::reserve), except it flushes the sink before
-    /// calling `poll_ready`.
+    /// This is similar to [`reserve`](SinkExt::reserve), except it calls
+    /// [`poll_flush`](Sink::poll_flush) on the sink before calling [`poll_ready`](Sink::poll_ready)
+    /// on it.
     fn flush_reserve(&mut self) -> FlushReserve<'_, Self, Item>
     where
         Self: Unpin,

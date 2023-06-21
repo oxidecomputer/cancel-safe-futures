@@ -9,9 +9,10 @@
 //! hard to write code that can withstand cancellation in the case of timeouts, `select!` branches
 //! or similar.
 //!
-//! For a more detailed example, see the documentation for [`SinkExt::reserve`].
+//! For a more detailed explanation, see the documentation for [`SinkExt::reserve`].
 //!
-//! This crate contains alternative adapters that are designed for use in cancel-safe scenarios.
+//! This crate contains alternative adapters that are designed for use in scenarios where
+//! cancellation is expected.
 //!
 //! # Example
 //!
