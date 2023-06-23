@@ -52,11 +52,12 @@ while item.is_some() {
     }
 }
 
-
-
-The `std` and `alloc` features are defined and enabled by default, but not currently
-used. No-std users must turn off default features while importing this crate.
 ```
+
+## Optional features
+
+The `std` and `alloc` features are defined and enabled by default, but not currently used.
+No-std users must turn off default features while importing this crate.
 
 ## License
 
