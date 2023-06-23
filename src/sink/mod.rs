@@ -33,12 +33,12 @@ pub trait SinkExt<Item>: Sink<Item> {
     /// # let mut my_sink = futures_util::sink::drain();
     /// // item must either be an Option<T> or be cloned, otherwise a
     /// // "value moved here, in previous iteration of loop" error occurs.
-    /// let mut item = Some("hello".to_owned());
+    /// let mut item = "hello".to_owned();
     ///
     /// let mut interval = tokio::time::interval(Duration::from_secs(10));
     /// loop {
     ///     tokio::select! {
-    ///         res = my_sink.send(item.take().unwrap()) => {
+    ///         res = my_sink.send(item.clone()) => {
     ///             res?;
     ///             break;
     ///         }
@@ -51,10 +51,9 @@ pub trait SinkExt<Item>: Sink<Item> {
     /// # Ok(()) }
     /// ```
     ///
-    /// If `interval.tick()` occurs before `my_sink.send(item)` completes, then there's no way to
-    /// retrieve `item` to try again. Even worse, it is impossible to tell if the item was actually
-    /// sent to the sink or not, since `send` combines [`Sink::poll_ready`], [`Sink::start_send`]
-    /// and [`Sink::poll_flush`].
+    /// If `interval.tick()` occurs before `my_sink.send(item.clone())` completes, then it is
+    /// impossible to tell if the item was actually sent to the sink or not, since `send` combines
+    /// [`Sink::poll_ready`], [`Sink::start_send`] and [`Sink::poll_flush`].
     ///
     /// `reserve` separates out [`Sink::poll_ready`] from the latter two steps, so that `item` is
     /// only sent after the stream is ready to accept it. In the above case, this might look
