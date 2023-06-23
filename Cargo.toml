@@ -12,3 +12,10 @@ futures-util = { version = "0.3.28", default-features = false, features = ["sink
 
 [dev-dependencies]
 tokio = { version = "1.28.2", features = ["rt", "macros", "time"] }
+
+[features]
+# These features are not currently used, however they're here to ensure
+# that no-std users always disable default features.
+default = ["std"]
+std = ["alloc", "futures-core/std", "futures-sink/std", "futures-util/std"]
+alloc = ["futures-core/alloc", "futures-sink/alloc", "futures-util/alloc"]

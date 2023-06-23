@@ -43,7 +43,8 @@ jobs:
         with:
           toolchain: ${{ matrix.rust-version }}
       - uses: Swatinem/rust-cache@v2
+      - uses: taiki-e/install-action@cargo-hack
       - name: Build
-        run: cargo build
+        run: cargo hack --feature-powerset build
       - name: Test
-        run: cargo test
+        run: cargo hack --feature-powerset test
