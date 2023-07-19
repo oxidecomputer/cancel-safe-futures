@@ -1,3 +1,5 @@
+//! Extensions for [`Sink`].
+
 mod flush_reserve;
 pub use flush_reserve::FlushReserve;
 

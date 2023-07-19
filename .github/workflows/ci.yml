@@ -24,6 +24,11 @@ jobs:
         run: cargo clippy --all-features --all-targets
       - name: Lint (rustfmt)
         run: cargo xfmt --check
+      - name: Run rustdoc
+        env:
+          RUSTC_BOOTSTRAP: 1  # for feature(doc_cfg)
+          RUSTDOCFLAGS: -Dwarnings --cfg doc_cfg
+        run: cargo doc --all-features --workspace
       - name: Check for differences
         run: git diff --exit-code
 
@@ -45,6 +50,6 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - uses: taiki-e/install-action@cargo-hack
       - name: Build
-        run: cargo hack --feature-powerset build
+        run: ./scripts/with-feature-powerset.sh build
       - name: Test
-        run: cargo hack --feature-powerset test
+        run: ./scripts/with-feature-powerset.sh test
