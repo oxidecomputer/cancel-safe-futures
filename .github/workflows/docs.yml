@@ -15,6 +15,9 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - name: Build rustdoc
+        env:
+          RUSTC_BOOTSTRAP: 1  # for feature(doc_cfg)
+          RUSTDOCFLAGS: -Dwarnings --cfg doc_cfg
         run: cargo doc --all-features --workspace
       - name: Organize
         run: |

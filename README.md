@@ -8,6 +8,10 @@ Alternative futures adapters that are more cancel-safe.
 
 ## What is this crate?
 
+This crate solves two related but distinct problems:
+
+### Cancel-safe futures adapters
+
 The [`futures`](https://docs.rs/futures/latest/futures/) library contains many adapters that
 make writing asynchronous Rust code more pleasant. However, some of those combinators make it
 hard to write code that can withstand cancellation in the case of timeouts, `select!` branches
@@ -15,10 +19,7 @@ or similar.
 
 For a more detailed explanation, see the documentation for [`SinkExt::reserve`].
 
-This crate contains alternative adapters that are designed for use in scenarios where
-cancellation is expected.
-
-## Example
+#### Example
 
 Attempt to send an item in a loop with a timeout:
 
@@ -54,7 +55,22 @@ while item.is_some() {
 
 ```
 
+### `tryx` adapters that don't perform cancellations
+
+The futures and tokio libraries come with a number of `try_` adapters and macros, for example
+[`tokio::try_join!`]. These adapters have the property that if one of the futures under
+consideration fails, all other futures are cancelled.
+
+This is not always desirable and has led to correctness bugs (e.g. [omicron
+##3707](https://github.com/oxidecomputer/omicron/pull/3707)). To address this issue, this crate
+provides a set of `tryx` adapters and macros that behave like their `try_` counterparts, except
+that even if one of the futures errors out the others will be run to completion.
+
+For a detailed example, see the documentation for the [`tryx_join`] macro.
+
 ## Optional features
+
+* `macros`: Enables macros.
 
 The `std` and `alloc` features are defined and enabled by default, but not currently used.
 No-std users must turn off default features while importing this crate.
@@ -66,6 +82,8 @@ license](LICENSE-MIT).
 
 Portions derived from [futures-rs](https://github.com/rust-lang/futures-rs), and used under the
 Apache 2.0 and MIT licenses.
+
+Portions derived from [tokio](https://github.com/tokio-rs/tokio), and used under the MIT license.
 
 <!--
 README.md is generated from README.tpl by cargo readme. To regenerate:
