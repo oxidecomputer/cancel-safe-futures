@@ -1,10 +1,9 @@
 //! Definition of the `TryxJoinAll` adapter, waiting for all of a list of
 //! futures to finish with either success or error.
 
-use crate::{
-    stream::{TryStreamExt, TryxCollect},
-    support::assert_future,
-};
+#[cfg(not(futures_no_atomic_cas))]
+use crate::stream::{TryStreamExt, TryxCollect};
+use crate::support::assert_future;
 use alloc::{boxed::Box, vec::Vec};
 use core::{
     fmt,
@@ -15,10 +14,9 @@ use core::{
     task::{Context, Poll},
 };
 use futures_core::future::TryFuture;
-use futures_util::{
-    future::{IntoFuture, MaybeDone, TryFutureExt},
-    stream::FuturesOrdered,
-};
+use futures_util::future::{IntoFuture, MaybeDone, TryFutureExt};
+#[cfg(not(futures_no_atomic_cas))]
+use futures_util::stream::FuturesOrdered;
 
 #[cfg(not(futures_no_atomic_cas))]
 pub(crate) const SMALL: usize = 30;

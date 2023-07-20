@@ -53,3 +53,23 @@ jobs:
         run: ./scripts/with-feature-powerset.sh build
       - name: Test
         run: ./scripts/with-feature-powerset.sh test
+
+  no-std:
+    name: Build no_std for ${{ matrix.target }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        # thumbv7m-none-eabi supports atomic CAS.
+        # thumbv6m-none-eabi supports atomic, but not atomic CAS.
+        target:
+          - thumbv7m-none-eabi
+          - thumbv6m-none-eabi
+        rust-version: [ stable ]
+      fail-fast: false
+    steps:
+      - uses: actions/checkout@v3
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ matrix.rust-version }}
+          targets: ${{ matrix.target }}
+      - run: ./scripts/with-feature-powerset.sh build-no-std --target ${{ matrix.target }}

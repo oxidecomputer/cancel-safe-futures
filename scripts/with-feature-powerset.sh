@@ -5,10 +5,8 @@ set -e -o pipefail
 # Run commands to build and test with a feature powerset. Requires `cargo-hack` to be installed.
 
 EXCLUDED_FEATURES=(internal-docs)
+EXCLUDED_FEATURES_NO_STD=(std internal-docs default)
 
-joined_excluded_features=$(printf ",%s" "${EXCLUDED_FEATURES[@]}")
-# Strip leading comma
-joined_excluded_features=${joined_excluded_features:1}
 
 run_build() {
     check_cargo_hack
@@ -30,6 +28,13 @@ run_test() {
     cargo test --all-features --doc
 }
 
+run_build_no_std() {
+    local build_target="$1"
+
+    echo_err "Building for no-std target ${build_target}"
+    run_cargo_hack_no_std build --target "${build_target}"
+}
+
 echo_err() {
     echo "$@" >&2
 }
@@ -43,6 +48,18 @@ check_cargo_hack() {
 }
 
 run_cargo_hack() {
+    joined_excluded_features=$(printf ",%s" "${EXCLUDED_FEATURES[@]}")
+    # Strip leading comma
+    joined_excluded_features=${joined_excluded_features:1}
+
+    cargo hack --feature-powerset --exclude-features "$joined_excluded_features" "$@"
+}
+
+run_cargo_hack_no_std() {
+    joined_excluded_features=$(printf ",%s" "${EXCLUDED_FEATURES_NO_STD[@]}")
+    # Strip leading comma
+    joined_excluded_features=${joined_excluded_features:1}
+
     cargo hack --feature-powerset --exclude-features "$joined_excluded_features" "$@"
 }
 
@@ -50,7 +67,20 @@ while [[ "$#" -gt 0 ]]; do
     case $1 in
         b|build) run_build ;;
         t|test) run_test ;;
-        -h|--help) echo "Usage: with-feature-powerset.sh [b|build|t|test]"; exit 0 ;;
+        build-no-std)
+            shift;
+            case $1 in
+                --target) build_target="$2"; shift ;;
+                "") echo_err "Usage: with-feature-powerset.sh build-no-std --target <target>"; exit 1 ;;
+            esac
+
+            if [[ -z "${build_target:-}" ]]; then
+                echo_err "Usage: with-feature-powerset.sh build-no-std --target <target>"
+                exit 1
+            fi
+
+            run_build_no_std "$build_target" ;;
+        -h|--help) echo "Usage: with-feature-powerset.sh [b|build|t|test|test-no-std]"; exit 0 ;;
         *) echo "Unknown parameter passed: $1"; exit 1 ;;
     esac
     shift
