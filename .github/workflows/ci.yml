@@ -72,4 +72,6 @@ jobs:
         with:
           toolchain: ${{ matrix.rust-version }}
           targets: ${{ matrix.target }}
+      - uses: Swatinem/rust-cache@v2
+      - uses: taiki-e/install-action@cargo-hack    
       - run: ./scripts/with-feature-powerset.sh build-no-std --target ${{ matrix.target }}
