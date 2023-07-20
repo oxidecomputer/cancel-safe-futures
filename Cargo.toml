@@ -27,12 +27,9 @@ tokio = { version = "1.28.2", features = ["fs", "io-util", "macros", "rt", "rt-m
 tokio-test = "0.4.0"
 
 [features]
-# These features are not currently used, however they're here to ensure
-# that no-std users always disable default features.
-default = ["std"]
+default = ["std", "macros"]
 std = ["alloc", "futures-core/std", "futures-sink/std", "futures-util/std"]
 alloc = ["futures-core/alloc", "futures-sink/alloc", "futures-util/alloc"]
-
 macros = []
 
 # Internal-only feature, used for documentation and doctests. Not part of the public API.

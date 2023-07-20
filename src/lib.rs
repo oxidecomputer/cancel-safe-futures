@@ -63,17 +63,18 @@
 //! [`tokio::try_join!`]. These adapters have the property that if one of the futures under
 //! consideration fails, all other futures are cancelled.
 //!
-//! This is not always desirable and has led to correctness bugs (e.g. [omicron
-//! #3707](https://github.com/oxidecomputer/omicron/pull/3707)). To address this issue, this crate
-//! provides a set of `then_try` adapters and macros that behave like their `try_`
-//! counterparts, except that even if one of the futures errors out the others will be run to
+//! This is not always desirable and has led to correctness bugs (e.g. [omicron PR
+//! 3707](https://github.com/oxidecomputer/omicron/pull/3707)). To address this issue, this crate
+//! provides a set of `then_try` adapters and macros that behave like their `try_` counterparts,
+//! except that if one or more of the futures errors out, the others will still be run to
 //! completion.
 //!
 //! The `then_try` library includes:
 //!
 //! * [`join_then_try`]: similar to [`tokio::try_join`].
 //! * [`future::join_all_then_try`]: similar to [`futures::future::try_join_all`].
-//! * [`TryStreamExt`]: contains extension methods similar to [`futures::stream::TryStreamExt`].
+//! * [`TryStreamExt`]: contains alternative extension methods to [`futures::stream::TryStreamExt`],
+//!   such as `collect_then_try`.
 //!
 //! ### Example
 //!
@@ -86,7 +87,7 @@
 //!
 //! # Optional features
 //!
-//! * `macros`: Enables macros.
+//! * `macros` (enabled by default): Enables macros.
 //! * `std` (enabled by default): Enables items that depend on `std`, including items that depend on
 //!   `alloc`.
 //! * `alloc` (enabled by default): Enables items that depend on `alloc`.
@@ -102,7 +103,7 @@ extern crate alloc;
 // Includes re-exports used by macros.
 //
 // This module is not intended to be part of the public API. In general, any
-// `doc(hidden)` code is not part of Tokio's public and stable API.
+// `doc(hidden)` code is not part of the public and stable API.
 #[macro_use]
 #[doc(hidden)]
 pub mod macros;

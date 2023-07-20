@@ -17,7 +17,7 @@ make writing asynchronous Rust code more pleasant. However, some of those combin
 hard to write code that can withstand cancellation in the case of timeouts, `select!` branches
 or similar.
 
-For a more detailed explanation, see the documentation for [`SinkExt::reserve`].
+For a more detailed explanation, see the documentation for `SinkExt::reserve`.
 
 #### Example
 
@@ -58,28 +58,33 @@ while item.is_some() {
 ### `then_try` adapters that don't perform cancellations
 
 The futures and tokio libraries come with a number of `try_` adapters and macros, for example
-[`tokio::try_join!`]. These adapters have the property that if one of the futures under
+`tokio::try_join!`. These adapters have the property that if one of the futures under
 consideration fails, all other futures are cancelled.
 
-This is not always desirable and has led to correctness bugs (e.g. [omicron
-##3707](https://github.com/oxidecomputer/omicron/pull/3707)). To address this issue, this crate
-provides a set of `then_try` adapters and macros that behave like their `try_`
-counterparts, except that even if one of the futures errors out the others will be run to
-completion.
+This is not always desirable and has led to correctness bugs (e.g. [omicron PR
+3707](https://github.com/oxidecomputer/omicron/pull/3707)). To address this issue, this crate
+provides a set of `then_try` adapters and macros that behave like their `try_` counterparts,
+except that even if one of the futures errors out the others will still be run to completion.
 
 The `then_try` library includes:
 
-* [`join_then_try`]: similar to [`tokio::try_join`].
-* [`future::join_all_then_try`]: similar to [`futures::future::try_join_all`].
-* [`TryStreamExt`]: contains extension methods similar to [`futures::stream::TryStreamExt`].
+* `join_then_try`: similar to `tokio::try_join`.
+* `future::join_all_then_try`: similar to `futures::future::try_join_all`.
+* `TryStreamExt`: contains alternative extension methods to `futures::stream::TryStreamExt`,
+  such as `collect_then_try`.
 
 #### Example
 
-For a detailed example, see the documentation for the [`join_then_try`] macro.
+For a detailed example, see the documentation for the `join_then_try` macro.
+
+## Notes
+
+This library is not complete: adapters and macros are added on an as-needed basis. If you need
+an adapter that is not yet implemented, please open an issue or a pull request.
 
 ## Optional features
 
-* `macros`: Enables macros.
+* `macros` (enabled by default): Enables macros.
 * `std` (enabled by default): Enables items that depend on `std`, including items that depend on
   `alloc`.
 * `alloc` (enabled by default): Enables items that depend on `alloc`.
