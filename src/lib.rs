@@ -82,8 +82,10 @@
 //! # Optional features
 //!
 //! * `macros`: Enables macros.
+//! * `std` (enabled by default): Enables items that depend on `std`, including items that depend on
+//!   `alloc`.
+//! * `alloc` (enabled by default): Enables items that depend on `alloc`.
 //!
-//! The `std` and `alloc` features are defined and enabled by default, but not currently used.
 //! No-std users must turn off default features while importing this crate.
 
 #![warn(missing_docs)]

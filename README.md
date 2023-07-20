@@ -63,16 +63,27 @@ consideration fails, all other futures are cancelled.
 
 This is not always desirable and has led to correctness bugs (e.g. [omicron
 ##3707](https://github.com/oxidecomputer/omicron/pull/3707)). To address this issue, this crate
-provides a set of `tryx` adapters and macros that behave like their `try_` counterparts, except
-that even if one of the futures errors out the others will be run to completion.
+provides a set of `tryx` adapters and macros (pronounced "tricks") that behave like their `try_`
+counterparts, except that even if one of the futures errors out the others will be run to
+completion.
+
+The `tryx` library includes:
+
+* [`tryx_join`]: similar to [`tokio::try_join`].
+* [`future::tryx_join_all`]: similar to [`futures::future::try_join_all`].
+* [`TryStreamExt`]: contains extension methods similar to [`futures::stream::TryStreamExt`].
+
+#### Example
 
 For a detailed example, see the documentation for the [`tryx_join`] macro.
 
 ## Optional features
 
 * `macros`: Enables macros.
+* `std` (enabled by default): Enables items that depend on `std`, including items that depend on
+  `alloc`.
+* `alloc` (enabled by default): Enables items that depend on `alloc`.
 
-The `std` and `alloc` features are defined and enabled by default, but not currently used.
 No-std users must turn off default features while importing this crate.
 
 ## License
