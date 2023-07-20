@@ -13,4 +13,4 @@
 //!
 //! [standard library's prelude]: https://doc.rust-lang.org/std/prelude/index.html
 
-pub use crate::sink::SinkExt as _;
+pub use crate::{sink::SinkExt as _, stream::TryStreamExt as _};

@@ -1,5 +1,7 @@
 //! Extensions for [`Sink`].
 
+use futures_sink::Sink;
+
 mod flush_reserve;
 pub use flush_reserve::FlushReserve;
 
@@ -7,8 +9,7 @@ mod permit;
 pub use permit::Permit;
 
 mod reserve;
-use core::future::Future;
-use futures_sink::Sink;
+use crate::support::assert_future;
 pub use reserve::Reserve;
 
 /// An extension trait for [`Sink`] that provides some cancel-safe adapters.
@@ -111,11 +112,3 @@ pub trait SinkExt<Item>: Sink<Item> {
 }
 
 impl<T: ?Sized, Item> SinkExt<Item> for T where T: Sink<Item> {}
-
-// Helper function to ensure that the futures we're returning all have the right implementations.
-pub(crate) fn assert_future<T, F>(future: F) -> F
-where
-    F: Future<Output = T>,
-{
-    future
-}

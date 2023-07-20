@@ -72,6 +72,8 @@
 //! The `tryx` library includes:
 //!
 //! * [`tryx_join`]: similar to [`tokio::try_join`].
+//! * [`future::tryx_join_all`]: similar to [`futures::future::try_join_all`].
+//! * [`TryStreamExt`]: contains extension methods similar to [`futures::stream::TryStreamExt`].
 //!
 //! ### Example
 //!
@@ -87,6 +89,9 @@
 #![warn(missing_docs)]
 #![cfg_attr(doc_cfg, feature(doc_cfg, doc_auto_cfg))]
 
+#[cfg(feature = "alloc")]
+extern crate alloc;
+
 // Includes re-exports used by macros.
 //
 // This module is not intended to be part of the public API. In general, any
@@ -95,7 +100,11 @@
 #[doc(hidden)]
 pub mod macros;
 
+pub mod future;
 pub mod prelude;
 pub mod sink;
+pub mod stream;
+mod support;
 
 pub use sink::SinkExt;
+pub use stream::TryStreamExt;

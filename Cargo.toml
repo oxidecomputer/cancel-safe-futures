@@ -14,9 +14,13 @@ futures-core = { version = "0.3.28", default-features = false }
 futures-sink = { version = "0.3.28", default-features = false }
 futures-util = { version = "0.3.28", default-features = false, features = ["sink"] }
 tokio = { version = "1.28.2", optional = true }
+futures = { version = "0.3.28", optional = true }
+pin-project-lite = "0.2.9"
 
 [dev-dependencies]
 anyhow = "1.0.72"
+async-stream = "0.3.5"
+debug-ignore = "1.0.5"
 tempfile = "3.6.0"
 tokio = { version = "1.28.2", features = ["fs", "io-util", "macros", "rt", "rt-multi-thread", "sync", "time"] }
 tokio-test = "0.4.0"
@@ -31,4 +35,4 @@ alloc = ["futures-core/alloc", "futures-sink/alloc", "futures-util/alloc"]
 macros = []
 
 # Internal-only feature, used for documentation and doctests. Not part of the public API.
-internal-docs = ["dep:tokio", "tokio?/io-util", "tokio?/macros", "tokio?/rt"]
+internal-docs = ["dep:futures", "dep:tokio", "tokio?/io-util", "tokio?/macros", "tokio?/rt"]
