@@ -25,11 +25,16 @@ run_test() {
     run_cargo_hack test --lib --bins --tests --benches --examples
 
     echo_err "Running doctests"
+    cargo test --doc
+
+    echo_err "Running doctests with all features"
     cargo test --all-features --doc
 }
 
 run_build_no_std() {
     local build_target="$1"
+
+    check_cargo_hack
 
     echo_err "Building for no-std target ${build_target}"
     run_cargo_hack_no_std build --target "${build_target}"

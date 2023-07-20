@@ -102,8 +102,9 @@ where
 /// # Examples
 ///
 /// ```
-/// # futures::executor::block_on(async {
-/// use futures::future;
+/// # #[tokio::main(flavor = "current_thread")]
+/// # async fn main() {
+/// use futures_util::future;
 /// use cancel_safe_futures::future::join_all_then_try;
 ///
 /// let futures = vec![
@@ -121,7 +122,7 @@ where
 /// ];
 ///
 /// assert_eq!(join_all_then_try(futures).await, Err(2));
-/// # });
+/// # }
 /// ```
 pub fn join_all_then_try<I>(iter: I) -> JoinAllThenTry<I::Item>
 where

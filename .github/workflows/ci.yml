@@ -50,9 +50,9 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - uses: taiki-e/install-action@cargo-hack
       - name: Build
-        run: ./scripts/with-feature-powerset.sh build
+        run: ./scripts/commands.sh build
       - name: Test
-        run: ./scripts/with-feature-powerset.sh test
+        run: ./scripts/commands.sh test
 
   no-std:
     name: Build no_std for ${{ matrix.target }}
@@ -74,4 +74,4 @@ jobs:
           targets: ${{ matrix.target }}
       - uses: Swatinem/rust-cache@v2
       - uses: taiki-e/install-action@cargo-hack    
-      - run: ./scripts/with-feature-powerset.sh build-no-std --target ${{ matrix.target }}
+      - run: ./scripts/commands.sh build-no-std --target ${{ matrix.target }}

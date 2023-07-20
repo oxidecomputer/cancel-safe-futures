@@ -79,6 +79,11 @@
 //!
 //! For a detailed example, see the documentation for the [`join_then_try`] macro.
 //!
+//! # Notes
+//!
+//! This library is not complete: adapters and macros are added on an as-needed basis. If you need
+//! an adapter that is not yet implemented, please open an issue or a pull request.
+//!
 //! # Optional features
 //!
 //! * `macros`: Enables macros.
