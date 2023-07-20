@@ -4,15 +4,15 @@
 /// Unlike [`tokio::try_join`], this macro does not cancel remaining futures if one of them returns
 /// an error. Instead, this macro runs all futures to completion.
 ///
-/// If more than one future produces an error, `join_then_try!` returns the error from the first future
-/// listed in the macro that produces an error.
+/// If more than one future produces an error, `join_then_try!` returns the error from the first
+/// future listed in the macro that produces an error.
 ///
 /// The `join_then_try!` macro must be used inside of async functions, closures, and blocks.
 ///
 /// # Why use `join_then_try`?
 ///
 /// Consider what happens if you're wrapping a set of
-/// [`AsyncWriteExt::write_all`](tokio::io::AsyncWriteExt::write_all) operations.
+/// [`AsyncWriteExt::flush`](tokio::io::AsyncWriteExt::flush) operations.
 ///
 /// ```
 /// use tokio::io::AsyncWriteExt;
@@ -23,14 +23,15 @@
 /// let mut file1 = tokio::fs::File::create(temp_dir.path().join("file1")).await?;
 /// let mut file2 = tokio::fs::File::create(temp_dir.path().join("file2")).await?;
 ///
-/// // With try_join, if one of the operations errors out the other one will be cancelled.
-/// tokio::try_join!(
-///     file1.write_all("data1".as_bytes()),
-///     file2.write_all("data2".as_bytes()),
-/// )?;
+/// // ... write some data to file1 and file2
+///
+/// tokio::try_join!(file1.flush(), file2.flush())?;
 ///
 /// # Ok(()) }
 /// ```
+///
+/// If `file1.flush()` returns an error, `file2.flush()` will be cancelled. This is not ideal, since
+/// we'd like to make an effort to flush both files as far as possible.
 ///
 /// One way to run all futures to completion is to use the [`tokio::join`] macro.
 ///
@@ -39,49 +40,48 @@
 /// # #[tokio::main(flavor = "current_thread")]
 /// # async fn main() -> anyhow::Result<()> {
 /// # let temp_dir = tempfile::tempdir()?;
-/// # let mut file1 = tokio::fs::File::create(temp_dir.path().join("file1")).await?;
-/// # let mut file2 = tokio::fs::File::create(temp_dir.path().join("file2")).await?;
-/// // tokio_join is unaware of errors and runs all futures to completion.
-/// let (res1, res2) = tokio::join!(
-///     file1.write_all("data1".as_bytes()),
-///     file2.write_all("data2".as_bytes()),
-/// );
+/// let mut file1 = tokio::fs::File::create(temp_dir.path().join("file1")).await?;
+/// let mut file2 = tokio::fs::File::create(temp_dir.path().join("file2")).await?;
 ///
+/// // tokio::join! is unaware of errors and runs all futures to completion.
+/// let (res1, res2) = tokio::join!(file1.flush(), file2.flush());
 /// res1?;
 /// res2?;
-///
 /// # Ok(()) }
 /// ```
 ///
-/// However, this is not ideal because it requires you to manually handle the results of each
-/// future. The `join_then_try` macro is a user-friendly equivalent to the above `tokio::join` example.
+/// This, too, is not ideal because it requires you to manually handle the results of each future.
+///
+/// The `join_then_try` macro behaves identically to the above `tokio::join` example, except it is
+/// more user-friendly.
 ///
 /// ```
 /// # use tokio::io::AsyncWriteExt;
 /// # #[tokio::main(flavor = "current_thread")]
 /// # async fn main() -> anyhow::Result<()> {
 /// # let temp_dir = tempfile::tempdir()?;
-/// # let mut file1 = tokio::fs::File::create(temp_dir.path().join("file1")).await?;
-/// # let mut file2 = tokio::fs::File::create(temp_dir.path().join("file2")).await?;
+/// let mut file1 = tokio::fs::File::create(temp_dir.path().join("file1")).await?;
+/// let mut file2 = tokio::fs::File::create(temp_dir.path().join("file2")).await?;
+///
 /// // With join_then_try, if one of the operations errors out the other one will still be
 /// // run to completion.
-/// cancel_safe_futures::join_then_try!(
-///     file1.write_all("data1".as_bytes()),
-///     file2.write_all("data2".as_bytes()),
-/// )?;
-///
+/// cancel_safe_futures::join_then_try!(file1.flush(), file2.flush())?;
 /// # Ok(()) }
 /// ```
 ///
 /// If an error occurs, the error from the first future listed in the macro that errors out will be
-/// returned. This is identical to the [`tokio::join`] example above, where `res1` is checked before
-/// `res2`.
+/// returned.
 ///
 /// # Notes
 ///
-/// The supplied futures are stored inline and does not require allocating a `Vec`.
+/// The supplied futures are stored inline. This macro is no-std and no-alloc compatible and does
+/// not require allocating a `Vec`.
 ///
-/// ### Runtime characteristics
+/// This adapter does not expose a way to gather and combine all returned errors. Implementing that
+/// is a future goal, but it requires some design work for a generic way to combine errors. To
+/// do that today, use [`tokio::join`] and combine errors at the end.
+///
+/// # Runtime characteristics
 ///
 /// By running all async expressions on the current task, the expressions are able to run
 /// **concurrently** but not in **parallel**. This means all expressions are run on the same thread

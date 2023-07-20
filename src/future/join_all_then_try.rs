@@ -84,7 +84,13 @@ where
 /// # Why use `join_all_then_try`?
 ///
 /// See the documentation for [`join_then_try`](crate::join_then_try) for a discussion of why you might
-/// want to use a `_then_try` adapter.
+/// want to use a `then_try` adapter.
+///
+/// # Notes
+///
+/// This adapter does not expose a way to gather and combine all returned errors. Implementing that
+/// is a future goal, but it requires some design work for a generic way to combine errors. To
+/// do that today, use [`futures::future::join_all`] and combine errors at the end.
 ///
 /// # See Also
 ///

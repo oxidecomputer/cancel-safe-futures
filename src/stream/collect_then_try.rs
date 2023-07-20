@@ -8,7 +8,7 @@ use futures_core::{
 use pin_project_lite::pin_project;
 
 pin_project! {
-    /// Future for the [`try_collect`](super::TryStreamExt::try_collect) method.
+    /// Future for the [`collect_then_try`](super::TryStreamExt::collect_then_try) method.
     #[derive(Debug)]
     #[must_use = "futures do nothing unless you `.await` or poll them"]
     pub struct CollectThenTry<St: TryStream, C> {

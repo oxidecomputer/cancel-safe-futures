@@ -18,6 +18,12 @@ pub trait TryStreamExt: TryStream {
     ///
     /// The returned future will be resolved when the stream terminates.
     ///
+    /// # Notes
+    ///
+    /// This adapter does not expose a way to gather and combine all returned errors. Implementing that
+    /// is a future goal, but it requires some design work for a generic way to combine errors. To
+    /// do that today, use [`futures::StreamExt::collect`] and combine errors at the end.
+    ///
     /// # Examples
     ///
     /// This example uses the [`async-stream`](https://docs.rs/async-stream) crate to create a
