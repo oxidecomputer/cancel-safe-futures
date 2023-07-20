@@ -1,6 +1,6 @@
 #![no_std]
 
-//! Alternative futures adapters that are more cancel-safe.
+//! Alternative futures adapters that are more cancellation-aware.
 //!
 //! # What is this crate?
 //!

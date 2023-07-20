@@ -3,8 +3,15 @@ name = "cancel-safe-futures"
 version = "0.1.0"
 edition = "2021"
 license = "MIT OR Apache-2.0"
-description = "Alternative futures adapters that are safe to cancel"
+description = "Alternative futures adapters that are more cancellation-aware"
+readme = "README.md"
+rust-version = "1.64.0"
+keywords = ["futures", "async-cancellation"]
+categories = ["asynchronous"]
+repository = "https://github.com/oxidecomputer/cancel-safe-futures"
+documentation = "https://docs.rs/cancel-safe-futures"
 resolver = "2"
+exclude = [".cargo/**/*", ".github/**/*", "scripts/**/*"]
 
 [package.metadata.docs.rs]
 all-features = true

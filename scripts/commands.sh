@@ -4,9 +4,12 @@ set -e -o pipefail
 
 # Run commands to build and test with a feature powerset. Requires `cargo-hack` to be installed.
 
+CARGO="${CARGO:-cargo}"
 EXCLUDED_FEATURES=(internal-docs)
 EXCLUDED_FEATURES_NO_STD=(std internal-docs default)
 
+trap 'echo_err "Error occurred at $0 command: $BASH_COMMAND"' ERR
+trap 'echo_err "Exiting $0"' EXIT
 
 run_build() {
     check_cargo_hack
@@ -45,7 +48,7 @@ echo_err() {
 }
 
 check_cargo_hack() {
-    if ! cargo hack --version >/dev/null 2>&1; then
+    if ! $CARGO hack --version >/dev/null 2>&1; then
         echo_err "cargo-hack not installed. Install it with:"
         echo_err "    cargo install cargo-hack"
         exit 1
@@ -57,7 +60,7 @@ run_cargo_hack() {
     # Strip leading comma
     joined_excluded_features=${joined_excluded_features:1}
 
-    cargo hack --feature-powerset --exclude-features "$joined_excluded_features" "$@"
+    $CARGO hack --feature-powerset --exclude-features "$joined_excluded_features" "$@"
 }
 
 run_cargo_hack_no_std() {
@@ -65,11 +68,17 @@ run_cargo_hack_no_std() {
     # Strip leading comma
     joined_excluded_features=${joined_excluded_features:1}
 
-    cargo hack --feature-powerset --exclude-features "$joined_excluded_features" "$@"
+    $CARGO hack --feature-powerset --exclude-features "$joined_excluded_features" "$@"
 }
+
+if [[ $# -eq 0 ]]; then
+    echo_err "Usage: with-feature-powerset.sh [b|build|t|test|build-no-std]"
+    exit 1
+fi
 
 while [[ "$#" -gt 0 ]]; do
     case $1 in
+        +*) CARGO="$CARGO $1" ;;
         b|build) run_build ;;
         t|test) run_test ;;
         build-no-std)
