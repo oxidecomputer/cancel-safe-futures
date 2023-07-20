@@ -65,8 +65,15 @@
 //!
 //! This is not always desirable and has led to correctness bugs (e.g. [omicron
 //! #3707](https://github.com/oxidecomputer/omicron/pull/3707)). To address this issue, this crate
-//! provides a set of `tryx` adapters and macros that behave like their `try_` counterparts, except
-//! that even if one of the futures errors out the others will be run to completion.
+//! provides a set of `tryx` adapters and macros (pronounced "tricks") that behave like their `try_`
+//! counterparts, except that even if one of the futures errors out the others will be run to
+//! completion.
+//!
+//! The `tryx` library includes:
+//!
+//! * [`tryx_join`]: similar to [`tokio::try_join`].
+//!
+//! ### Example
 //!
 //! For a detailed example, see the documentation for the [`tryx_join`] macro.
 //!

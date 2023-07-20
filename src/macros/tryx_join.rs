@@ -35,14 +35,12 @@
 /// One way to run all futures to completion is to use the [`tokio::join`] macro.
 ///
 /// ```
-/// use tokio::io::AsyncWriteExt;
-///
+/// # use tokio::io::AsyncWriteExt;
 /// # #[tokio::main(flavor = "current_thread")]
 /// # async fn main() -> anyhow::Result<()> {
-/// let temp_dir = tempfile::tempdir()?;
-/// let mut file1 = tokio::fs::File::create(temp_dir.path().join("file1")).await?;
-/// let mut file2 = tokio::fs::File::create(temp_dir.path().join("file2")).await?;
-///
+/// # let temp_dir = tempfile::tempdir()?;
+/// # let mut file1 = tokio::fs::File::create(temp_dir.path().join("file1")).await?;
+/// # let mut file2 = tokio::fs::File::create(temp_dir.path().join("file2")).await?;
 /// // tokio_join is unaware of errors and runs all futures to completion.
 /// let (res1, res2) = tokio::join!(
 ///     file1.write_all("data1".as_bytes()),
@@ -59,14 +57,12 @@
 /// future. The `tryx_join` macro is a user-friendly equivalent to the above `tokio::join` example.
 ///
 /// ```
-/// use tokio::io::AsyncWriteExt;
-///
+/// # use tokio::io::AsyncWriteExt;
 /// # #[tokio::main(flavor = "current_thread")]
 /// # async fn main() -> anyhow::Result<()> {
-/// let temp_dir = tempfile::tempdir()?;
-/// let mut file1 = tokio::fs::File::create(temp_dir.path().join("file1")).await?;
-/// let mut file2 = tokio::fs::File::create(temp_dir.path().join("file2")).await?;
-///
+/// # let temp_dir = tempfile::tempdir()?;
+/// # let mut file1 = tokio::fs::File::create(temp_dir.path().join("file1")).await?;
+/// # let mut file2 = tokio::fs::File::create(temp_dir.path().join("file2")).await?;
 /// // With tryx_join, if one of the operations errors out the other one will still be
 /// // run to completion.
 /// cancel_safe_futures::tryx_join!(
