@@ -4,12 +4,12 @@
 /// Unlike [`tokio::try_join`], this macro does not cancel remaining futures if one of them returns
 /// an error. Instead, this macro runs all futures to completion.
 ///
-/// If more than one future produces an error, `tryx_join!` returns the error from the first future
+/// If more than one future produces an error, `join_then_try!` returns the error from the first future
 /// listed in the macro that produces an error.
 ///
-/// The `tryx_join!` macro must be used inside of async functions, closures, and blocks.
+/// The `join_then_try!` macro must be used inside of async functions, closures, and blocks.
 ///
-/// # Why use `tryx_join`?
+/// # Why use `join_then_try`?
 ///
 /// Consider what happens if you're wrapping a set of
 /// [`AsyncWriteExt::write_all`](tokio::io::AsyncWriteExt::write_all) operations.
@@ -54,7 +54,7 @@
 /// ```
 ///
 /// However, this is not ideal because it requires you to manually handle the results of each
-/// future. The `tryx_join` macro is a user-friendly equivalent to the above `tokio::join` example.
+/// future. The `join_then_try` macro is a user-friendly equivalent to the above `tokio::join` example.
 ///
 /// ```
 /// # use tokio::io::AsyncWriteExt;
@@ -63,9 +63,9 @@
 /// # let temp_dir = tempfile::tempdir()?;
 /// # let mut file1 = tokio::fs::File::create(temp_dir.path().join("file1")).await?;
 /// # let mut file2 = tokio::fs::File::create(temp_dir.path().join("file2")).await?;
-/// // With tryx_join, if one of the operations errors out the other one will still be
+/// // With join_then_try, if one of the operations errors out the other one will still be
 /// // run to completion.
-/// cancel_safe_futures::tryx_join!(
+/// cancel_safe_futures::join_then_try!(
 ///     file1.write_all("data1".as_bytes()),
 ///     file2.write_all("data2".as_bytes()),
 /// )?;
@@ -87,19 +87,19 @@
 /// **concurrently** but not in **parallel**. This means all expressions are run on the same thread
 /// and if one branch blocks the thread, all other expressions will be unable to continue. If
 /// parallelism is required, spawn each async expression using [`tokio::task::spawn`] and pass the
-/// join handle to `tryx_join!`.
+/// join handle to `join_then_try!`.
 #[macro_export]
 #[cfg_attr(docsrs, doc(cfg(feature = "macros")))]
-macro_rules! tryx_join {
+macro_rules! join_then_try {
     (@ {
-        // One `_` for each branch in the `tryx_join!` macro. This is not used once
+        // One `_` for each branch in the `join_then_try!` macro. This is not used once
         // normalization is complete.
         ( $($count:tt)* )
 
         // The expression `0+1+1+ ... +1` equal to the number of branches.
         ( $($total:tt)* )
 
-        // Normalized tryx_join! branches
+        // Normalized join_then_try! branches
         $( ( $($skip:tt)* ) $e:expr, )*
 
     }) => {{
@@ -193,13 +193,13 @@ macro_rules! tryx_join {
     // ===== Normalize =====
 
     (@ { ( $($s:tt)* ) ( $($n:tt)* ) $($t:tt)* } $e:expr, $($r:tt)* ) => {
-      $crate::tryx_join!(@{ ($($s)* _) ($($n)* + 1) $($t)* ($($s)*) $e, } $($r)*)
+      $crate::join_then_try!(@{ ($($s)* _) ($($n)* + 1) $($t)* ($($s)*) $e, } $($r)*)
     };
 
     // ===== Entry point =====
 
     ( $($e:expr),+ $(,)?) => {
-        $crate::tryx_join!(@{ () (0) } $($e,)*)
+        $crate::join_then_try!(@{ () (0) } $($e,)*)
     };
 
     () => { async { Ok(()) }.await }

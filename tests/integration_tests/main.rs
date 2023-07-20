@@ -1,2 +1,2 @@
-mod macros_tryx_join;
-mod tryx_join_all;
+mod join_all_then_try;
+mod macros_join_then_try;

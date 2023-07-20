@@ -1,8 +1,8 @@
-//! Definition of the `TryxJoinAll` adapter, waiting for all of a list of
+//! Definition of the `JoinAllThenTry` adapter, waiting for all of a list of
 //! futures to finish with either success or error.
 
 #[cfg(not(futures_no_atomic_cas))]
-use crate::stream::{TryStreamExt, TryxCollect};
+use crate::stream::{CollectThenTry, TryStreamExt};
 use crate::support::assert_future;
 use alloc::{boxed::Box, vec::Vec};
 use core::{
@@ -21,16 +21,16 @@ use futures_util::stream::FuturesOrdered;
 #[cfg(not(futures_no_atomic_cas))]
 pub(crate) const SMALL: usize = 30;
 
-/// Future for the [`tryx_join_all`] function.
+/// Future for the [`join_all_then_try`] function.
 #[must_use = "futures do nothing unless you `.await` or poll them"]
-pub struct TryxJoinAll<F>
+pub struct JoinAllThenTry<F>
 where
     F: TryFuture,
 {
-    kind: TryxJoinAllKind<F>,
+    kind: JoinAllKindThenTry<F>,
 }
 
-enum TryxJoinAllKind<F>
+enum JoinAllKindThenTry<F>
 where
     F: TryFuture,
 {
@@ -41,11 +41,11 @@ where
     Big {
         // The use of FuturesOrdered here ensures that in case of errors, the first future listed in
         // the iterator that errors out will be returned.
-        fut: TryxCollect<FuturesOrdered<IntoFuture<F>>, Vec<F::Ok>>,
+        fut: CollectThenTry<FuturesOrdered<IntoFuture<F>>, Vec<F::Ok>>,
     },
 }
 
-impl<F> fmt::Debug for TryxJoinAll<F>
+impl<F> fmt::Debug for JoinAllThenTry<F>
 where
     F: TryFuture + fmt::Debug,
     F::Ok: fmt::Debug,
@@ -54,11 +54,12 @@ where
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self.kind {
-            TryxJoinAllKind::Small { ref elems } => {
-                f.debug_struct("TryxJoinAll").field("elems", elems).finish()
-            }
+            JoinAllKindThenTry::Small { ref elems } => f
+                .debug_struct("JoinAllThenTry")
+                .field("elems", elems)
+                .finish(),
             #[cfg(not(futures_no_atomic_cas))]
-            TryxJoinAllKind::Big { ref fut, .. } => fmt::Debug::fmt(fut, f),
+            JoinAllKindThenTry::Big { ref fut, .. } => fmt::Debug::fmt(fut, f),
         }
     }
 }
@@ -80,14 +81,14 @@ where
 /// This function is only available when the `std` or `alloc` feature of this library is activated,
 /// and it is activated by default.
 ///
-/// # Why use `tryx_join_all`?
+/// # Why use `join_all_then_try`?
 ///
-/// See the documentation for [`tryx_join`](crate::tryx_join) for a discussion of why you might
-/// want to use a `tryx_` adapter.
+/// See the documentation for [`join_then_try`](crate::join_then_try) for a discussion of why you might
+/// want to use a `_then_try` adapter.
 ///
 /// # See Also
 ///
-/// `tryx_join_all` will switch to the more powerful [`FuturesOrdered`] for performance reasons if
+/// `join_all_then_try` will switch to the more powerful [`FuturesOrdered`] for performance reasons if
 /// the number of futures is large. You may want to look into using it or its counterpart
 /// [`FuturesUnordered`][futures::stream::FuturesUnordered] directly.
 ///
@@ -103,7 +104,7 @@ where
 /// ```
 /// # futures::executor::block_on(async {
 /// use futures::future;
-/// use cancel_safe_futures::future::tryx_join_all;
+/// use cancel_safe_futures::future::join_all_then_try;
 ///
 /// let futures = vec![
 ///     future::ok::<u32, u32>(1),
@@ -111,7 +112,7 @@ where
 ///     future::ok::<u32, u32>(3),
 /// ];
 ///
-/// assert_eq!(tryx_join_all(futures).await, Ok(vec![1, 2, 3]));
+/// assert_eq!(join_all_then_try(futures).await, Ok(vec![1, 2, 3]));
 ///
 /// let futures = vec![
 ///     future::ok::<u32, u32>(1),
@@ -119,10 +120,10 @@ where
 ///     future::ok::<u32, u32>(3),
 /// ];
 ///
-/// assert_eq!(tryx_join_all(futures).await, Err(2));
+/// assert_eq!(join_all_then_try(futures).await, Err(2));
 /// # });
 /// ```
-pub fn tryx_join_all<I>(iter: I) -> TryxJoinAll<I::Item>
+pub fn join_all_then_try<I>(iter: I) -> JoinAllThenTry<I::Item>
 where
     I: IntoIterator,
     I::Item: TryFuture,
@@ -131,33 +132,33 @@ where
 
     #[cfg(futures_no_atomic_cas)]
     {
-        let kind = TryxJoinAllKind::Small {
+        let kind = JoinAllKindThenTry::Small {
             elems: iter.map(MaybeDone::Future).collect::<Box<[_]>>().into(),
         };
 
         assert_future::<Result<Vec<<I::Item as TryFuture>::Ok>, <I::Item as TryFuture>::Error>, _>(
-            TryxJoinAll { kind },
+            JoinAllThenTry { kind },
         )
     }
 
     #[cfg(not(futures_no_atomic_cas))]
     {
         let kind = match iter.size_hint().1 {
-            Some(max) if max <= SMALL => TryxJoinAllKind::Small {
+            Some(max) if max <= SMALL => JoinAllKindThenTry::Small {
                 elems: iter.map(MaybeDone::Future).collect::<Box<[_]>>().into(),
             },
-            _ => TryxJoinAllKind::Big {
-                fut: iter.collect::<FuturesOrdered<_>>().tryx_collect(),
+            _ => JoinAllKindThenTry::Big {
+                fut: iter.collect::<FuturesOrdered<_>>().collect_then_try(),
             },
         };
 
         assert_future::<Result<Vec<<I::Item as TryFuture>::Ok>, <I::Item as TryFuture>::Error>, _>(
-            TryxJoinAll { kind },
+            JoinAllThenTry { kind },
         )
     }
 }
 
-impl<F> Future for TryxJoinAll<F>
+impl<F> Future for JoinAllThenTry<F>
 where
     F: TryFuture,
 {
@@ -170,7 +171,7 @@ where
         }
 
         match &mut self.kind {
-            TryxJoinAllKind::Small { elems } => {
+            JoinAllKindThenTry::Small { elems } => {
                 let mut state = FinalState::AllDone;
 
                 for elem in iter_pin_mut(elems.as_mut()) {
@@ -192,17 +193,17 @@ where
                 }
             }
             #[cfg(not(futures_no_atomic_cas))]
-            TryxJoinAllKind::Big { fut } => Pin::new(fut).poll(cx),
+            JoinAllKindThenTry::Big { fut } => Pin::new(fut).poll(cx),
         }
     }
 }
 
-impl<F> FromIterator<F> for TryxJoinAll<F>
+impl<F> FromIterator<F> for JoinAllThenTry<F>
 where
     F: TryFuture,
 {
     fn from_iter<T: IntoIterator<Item = F>>(iter: T) -> Self {
-        tryx_join_all(iter)
+        join_all_then_try(iter)
     }
 }
 

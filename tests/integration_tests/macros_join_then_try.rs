@@ -11,28 +11,28 @@ use wasm_bindgen_test::wasm_bindgen_test as maybe_tokio_test;
 
 #[maybe_tokio_test]
 async fn sync_one_lit_expr_comma() {
-    let foo = cancel_safe_futures::tryx_join!(async { ok(1) },);
+    let foo = cancel_safe_futures::join_then_try!(async { ok(1) },);
 
     assert_eq!(foo, Ok((1,)));
 }
 
 #[maybe_tokio_test]
 async fn sync_one_lit_expr_no_comma() {
-    let foo = cancel_safe_futures::tryx_join!(async { ok(1) });
+    let foo = cancel_safe_futures::join_then_try!(async { ok(1) });
 
     assert_eq!(foo, Ok((1,)));
 }
 
 #[maybe_tokio_test]
 async fn sync_two_lit_expr_comma() {
-    let foo = cancel_safe_futures::tryx_join!(async { ok(1) }, async { ok(2) },);
+    let foo = cancel_safe_futures::join_then_try!(async { ok(1) }, async { ok(2) },);
 
     assert_eq!(foo, Ok((1, 2)));
 }
 
 #[maybe_tokio_test]
 async fn sync_two_lit_expr_no_comma() {
-    let foo = cancel_safe_futures::tryx_join!(async { ok(1) }, async { ok(2) });
+    let foo = cancel_safe_futures::join_then_try!(async { ok(1) }, async { ok(2) });
 
     assert_eq!(foo, Ok((1, 2)));
 }
@@ -42,7 +42,7 @@ async fn two_await() {
     let (tx1, rx1) = oneshot::channel::<&str>();
     let (tx2, rx2) = oneshot::channel::<u32>();
 
-    let mut join = task::spawn(async { cancel_safe_futures::tryx_join!(rx1, rx2) });
+    let mut join = task::spawn(async { cancel_safe_futures::join_then_try!(rx1, rx2) });
 
     assert_pending!(join.poll());
 
@@ -65,7 +65,7 @@ async fn err_no_abort_early() {
     let (tx4, rx4) = oneshot::channel::<u32>();
 
     let mut join = task::spawn(async {
-        cancel_safe_futures::tryx_join!(
+        cancel_safe_futures::join_then_try!(
             async { rx1.await.map_err(|_| "rx1 failed") },
             async { rx2.await.map_err(|_| "rx2 failed") },
             async { rx3.await.map_err(|_| "rx3 failed") },
@@ -95,7 +95,7 @@ async fn err_no_abort_early() {
     // All futures have completed.
     let res = assert_ready!(join.poll());
 
-    // The first future listed in the tryx_join macro to produce an error is rx1. Ensure that rx1
+    // The first future listed in the join_then_try macro to produce an error is rx1. Ensure that rx1
     // (and not rx3, which is the first future to actually cause an error) is returned here.
     assert_eq!(res.unwrap_err(), "rx1 failed");
 }
@@ -107,14 +107,14 @@ fn join_size() {
 
     let fut = async {
         let ready = std::future::ready(ok(0i32));
-        cancel_safe_futures::tryx_join!(ready)
+        cancel_safe_futures::join_then_try!(ready)
     };
     assert_eq!(mem::size_of_val(&fut), 32);
 
     let fut = async {
         let ready1 = std::future::ready(ok(0i32));
         let ready2 = std::future::ready(ok(0i32));
-        cancel_safe_futures::tryx_join!(ready1, ready2)
+        cancel_safe_futures::join_then_try!(ready1, ready2)
     };
     assert_eq!(mem::size_of_val(&fut), 48);
 }
@@ -155,7 +155,7 @@ async fn try_join_does_not_allow_tasks_to_starve() {
     let permits = Arc::new(Semaphore::new(10));
 
     // non_cooperative_task should yield after its budget is exceeded and then poor_little_task should run.
-    let result = cancel_safe_futures::tryx_join!(
+    let result = cancel_safe_futures::join_then_try!(
         non_cooperative_task(Arc::clone(&permits)),
         poor_little_task(permits)
     );
@@ -198,5 +198,8 @@ async fn a_different_future_is_polled_first_every_time_poll_fn_is_polled() {
 
 #[tokio::test]
 async fn empty_try_join() {
-    assert_eq!(cancel_safe_futures::tryx_join!() as Result<_, ()>, Ok(()));
+    assert_eq!(
+        cancel_safe_futures::join_then_try!() as Result<_, ()>,
+        Ok(())
+    );
 }

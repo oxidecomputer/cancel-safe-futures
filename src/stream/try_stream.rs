@@ -1,4 +1,4 @@
-use super::TryxCollect;
+use super::CollectThenTry;
 use crate::support::assert_future;
 use futures_core::TryStream;
 
@@ -46,7 +46,7 @@ pub trait TryStreamExt: TryStream {
     ///     end_ref.store(true, Ordering::SeqCst);
     /// };
     ///
-    /// let output: Result<Vec<i32>, i32> = stream.tryx_collect().await;
+    /// let output: Result<Vec<i32>, i32> = stream.collect_then_try().await;
     ///
     /// // The first error encountered is returned.
     /// assert_eq!(output, Err(5));
@@ -55,10 +55,10 @@ pub trait TryStreamExt: TryStream {
     /// assert!(end_of_stream.load(Ordering::SeqCst));
     /// # }
     /// ```
-    fn tryx_collect<C: Default + Extend<Self::Ok>>(self) -> TryxCollect<Self, C>
+    fn collect_then_try<C: Default + Extend<Self::Ok>>(self) -> CollectThenTry<Self, C>
     where
         Self: Sized,
     {
-        assert_future::<Result<C, Self::Error>, _>(TryxCollect::new(self))
+        assert_future::<Result<C, Self::Error>, _>(CollectThenTry::new(self))
     }
 }

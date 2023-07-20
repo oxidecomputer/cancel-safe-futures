@@ -11,7 +11,7 @@ pin_project! {
     /// Future for the [`try_collect`](super::TryStreamExt::try_collect) method.
     #[derive(Debug)]
     #[must_use = "futures do nothing unless you `.await` or poll them"]
-    pub struct TryxCollect<St: TryStream, C> {
+    pub struct CollectThenTry<St: TryStream, C> {
         #[pin]
         stream: St,
         items: C,
@@ -19,7 +19,7 @@ pin_project! {
     }
 }
 
-impl<St: TryStream, C: Default> TryxCollect<St, C> {
+impl<St: TryStream, C: Default> CollectThenTry<St, C> {
     pub(super) fn new(s: St) -> Self {
         Self {
             stream: s,
@@ -29,7 +29,7 @@ impl<St: TryStream, C: Default> TryxCollect<St, C> {
     }
 }
 
-impl<St: TryStream, C> FusedFuture for TryxCollect<St, C>
+impl<St: TryStream, C> FusedFuture for CollectThenTry<St, C>
 where
     St: TryStream + FusedStream,
     C: Default + Extend<St::Ok>,
@@ -39,7 +39,7 @@ where
     }
 }
 
-impl<St, C> Future for TryxCollect<St, C>
+impl<St, C> Future for CollectThenTry<St, C>
 where
     St: TryStream,
     C: Default + Extend<St::Ok>,

@@ -1,6 +1,6 @@
 #![cfg(feature = "alloc")]
 
-use cancel_safe_futures::future::tryx_join_all;
+use cancel_safe_futures::future::join_all_then_try;
 use futures_util::future::{err, ok};
 use std::future::Future;
 use tokio::sync::oneshot;
@@ -13,10 +13,10 @@ use wasm_bindgen_test::wasm_bindgen_test as maybe_tokio_test;
 #[maybe_tokio_test]
 async fn basic() {
     assert_eq!(
-        tryx_join_all(vec![ok(1), ok(2)]).await,
+        join_all_then_try(vec![ok(1), ok(2)]).await,
         Ok::<_, usize>(vec![1, 2]),
     );
-    assert_eq!(tryx_join_all(vec![ok(1), err(2)]).await, Err(2));
+    assert_eq!(join_all_then_try(vec![ok(1), err(2)]).await, Err(2));
 }
 
 #[maybe_tokio_test]
@@ -25,7 +25,7 @@ async fn iter_lifetime() {
     // conservative type parameterization of `TryJoinAll`.
     fn sizes(bufs: Vec<&[u8]>) -> impl Future<Output = Result<Vec<usize>, ()>> {
         let iter = bufs.into_iter().map(|b| ok::<usize, ()>(b.len()));
-        tryx_join_all(iter)
+        join_all_then_try(iter)
     }
 
     assert_eq!(
@@ -55,12 +55,12 @@ async fn err_no_abort_early_helper(len: usize) {
         });
     }
 
-    let mut join = task::spawn(tryx_join_all(futures));
+    let mut join = task::spawn(join_all_then_try(futures));
 
     assert_pending!(join.poll());
 
     // Send values in reverse order, ensuring that the first future to fail is not the first future
-    // returned by tryx_join_all.
+    // returned by join_all_then_try.
     for ix in (0..len).rev() {
         let tx = txs.pop().unwrap();
 

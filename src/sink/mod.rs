@@ -1,4 +1,4 @@
-//! Extensions for [`Sink`].
+//! Alternative extensions for [`Sink`].
 
 use futures_sink::Sink;
 
@@ -12,7 +12,7 @@ mod reserve;
 use crate::support::assert_future;
 pub use reserve::Reserve;
 
-/// An extension trait for [`Sink`] that provides some cancel-safe adapters.
+/// Extension trait for [`Sink`] that provides alternative adapters.
 pub trait SinkExt<Item>: Sink<Item> {
     /// A future that completes once an item is ready to be sent to this sink.
     ///

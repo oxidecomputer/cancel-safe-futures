@@ -6,5 +6,5 @@
 mod try_stream;
 pub use try_stream::TryStreamExt;
 
-mod tryx_collect;
-pub use tryx_collect::TryxCollect;
+mod collect_then_try;
+pub use collect_then_try::CollectThenTry;

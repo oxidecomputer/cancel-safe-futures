@@ -4,6 +4,6 @@
 //! module, but don't cancel other futures if one of them errors out.
 
 #[cfg(feature = "alloc")]
-mod tryx_join_all;
+mod join_all_then_try;
 #[cfg(feature = "alloc")]
-pub use tryx_join_all::{tryx_join_all, TryxJoinAll};
+pub use join_all_then_try::{join_all_then_try, JoinAllThenTry};

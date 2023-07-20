@@ -57,7 +57,7 @@
 //! # Ok(()) }
 //! ```
 //!
-//! ## `tryx` adapters that don't perform cancellations
+//! ## `then_try` adapters that don't perform cancellations
 //!
 //! The futures and tokio libraries come with a number of `try_` adapters and macros, for example
 //! [`tokio::try_join!`]. These adapters have the property that if one of the futures under
@@ -65,19 +65,19 @@
 //!
 //! This is not always desirable and has led to correctness bugs (e.g. [omicron
 //! #3707](https://github.com/oxidecomputer/omicron/pull/3707)). To address this issue, this crate
-//! provides a set of `tryx` adapters and macros (pronounced "tricks") that behave like their `try_`
+//! provides a set of `then_try` adapters and macros that behave like their `try_`
 //! counterparts, except that even if one of the futures errors out the others will be run to
 //! completion.
 //!
-//! The `tryx` library includes:
+//! The `then_try` library includes:
 //!
-//! * [`tryx_join`]: similar to [`tokio::try_join`].
-//! * [`future::tryx_join_all`]: similar to [`futures::future::try_join_all`].
+//! * [`join_then_try`]: similar to [`tokio::try_join`].
+//! * [`future::join_all_then_try`]: similar to [`futures::future::try_join_all`].
 //! * [`TryStreamExt`]: contains extension methods similar to [`futures::stream::TryStreamExt`].
 //!
 //! ### Example
 //!
-//! For a detailed example, see the documentation for the [`tryx_join`] macro.
+//! For a detailed example, see the documentation for the [`join_then_try`] macro.
 //!
 //! # Optional features
 //!
