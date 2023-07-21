@@ -1,10 +1,12 @@
 # cancel-safe-futures
 
+[![cancel-safe-futures on crates.io](https://img.shields.io/crates/v/cancel-safe-futures)](https://crates.io/crates/cancel-safe-futures)
+[![Documentation (latest release)](https://img.shields.io/badge/docs-latest%20version-brightgreen.svg)](https://docs.rs/cancel-safe-futures)
 [![Documentation (main)](https://img.shields.io/badge/docs-main-brightgreen)](https://oxidecomputer.github.io/cancel-safe-futures/rustdoc/cancel_safe_futures/)
 [![License](https://img.shields.io/badge/license-Apache-green.svg)](LICENSE-APACHE)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE-MIT)
 
-Alternative futures adapters that are more cancel-safe.
+Alternative futures adapters that are more cancellation-aware.
 
 ## What is this crate?
 
@@ -64,7 +66,8 @@ consideration fails, all other futures are cancelled.
 This is not always desirable and has led to correctness bugs (e.g. [omicron PR
 3707](https://github.com/oxidecomputer/omicron/pull/3707)). To address this issue, this crate
 provides a set of `then_try` adapters and macros that behave like their `try_` counterparts,
-except that even if one of the futures errors out the others will still be run to completion.
+except that if one or more of the futures errors out, the others will still be run to
+completion.
 
 The `then_try` library includes:
 

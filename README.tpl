@@ -1,5 +1,7 @@
 # {{crate}}
 
+[![cancel-safe-futures on crates.io](https://img.shields.io/crates/v/cancel-safe-futures)](https://crates.io/crates/cancel-safe-futures)
+[![Documentation (latest release)](https://img.shields.io/badge/docs-latest%20version-brightgreen.svg)](https://docs.rs/cancel-safe-futures)
 [![Documentation (main)](https://img.shields.io/badge/docs-main-brightgreen)](https://oxidecomputer.github.io/cancel-safe-futures/rustdoc/cancel_safe_futures/)
 [![License](https://img.shields.io/badge/license-Apache-green.svg)](LICENSE-APACHE)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE-MIT)
@@ -20,5 +22,5 @@ Portions derived from [tokio](https://github.com/tokio-rs/tokio), and used under
 README.md is generated from README.tpl by cargo readme. To regenerate:
 
 cargo install cargo-readme
-cargo readme > README.md
+./scripts/regenerate-readmes.sh
 -->
