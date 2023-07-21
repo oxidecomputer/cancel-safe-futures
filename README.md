@@ -69,7 +69,7 @@ provides a set of `then_try` adapters and macros that behave like their `try_` c
 except that if one or more of the futures errors out, the others will still be run to
 completion.
 
-The `then_try` library includes:
+The `then_try` family includes:
 
 * `join_then_try`: similar to `tokio::try_join`.
 * `future::join_all_then_try`: similar to `futures::future::try_join_all`.
@@ -108,5 +108,5 @@ Portions derived from [tokio](https://github.com/tokio-rs/tokio), and used under
 README.md is generated from README.tpl by cargo readme. To regenerate:
 
 cargo install cargo-readme
-cargo readme > README.md
+./scripts/regenerate-readmes.sh
 -->
