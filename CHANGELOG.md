@@ -1,6 +1,6 @@
 # Changelog
 
-## [1.0.0] - 2023-07-20
+## [0.1.0] - 2023-07-20
 
 Initial release, with support for:
 - `SinkExt::reserve`
@@ -8,4 +8,4 @@ Initial release, with support for:
 - A `future::join_all_then_try` adapter
 - `TryFutureExt`, with a `collect_than_try` adapter
 
-[1.0.0]: https://github.com/oxidecomputer/cancel-safe-futures/releases/cancel-safe-futures-1.0.0
+[0.1.0]: https://github.com/oxidecomputer/cancel-safe-futures/releases/cancel-safe-futures-0.1.0
