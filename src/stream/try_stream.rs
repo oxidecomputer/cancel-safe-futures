@@ -6,6 +6,79 @@ impl<S: ?Sized + TryStream> TryStreamExt for S {}
 
 /// Alternative adapters for `Result`-returning streams
 pub trait TryStreamExt: TryStream {
+    /// Attempts to run this stream to completion, executing the provided asynchronous closure for
+    /// each element on the stream concurrently as elements become available. Runs the stream to
+    /// completion, then exits with:
+    ///
+    /// - `Ok(())` if all elements were processed successfully.
+    /// - `Err(error)` if an error occurred while processing an element. The first error encountered
+    ///   is cached and returned.
+    ///
+    /// This is similar to
+    /// [`try_for_each_concurrent`](futures::stream::TryStreamExt::try_for_each_concurrent),
+    /// but will continue running the stream to completion even if an error is encountered.
+    ///
+    /// This method is only available when the `std` or `alloc` feature of this library is
+    /// activated, and it is activated by default.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use cancel_safe_futures::stream::TryStreamExt;
+    /// use tokio::sync::oneshot;
+    /// use futures_util::{stream, FutureExt, StreamExt};
+    ///
+    /// # #[tokio::main(flavor = "current_thread")]
+    /// # async fn main() {
+    /// let (tx1, rx1) = oneshot::channel();
+    /// let (tx2, rx2) = oneshot::channel();
+    /// let (tx3, rx3) = oneshot::channel();
+    ///
+    /// let stream = stream::iter(vec![rx1, rx2, rx3]);
+    /// let fut = stream.map(Ok).for_each_concurrent_then_try(
+    ///     /* limit */ 2,
+    ///     |rx| async move {
+    ///         let res: Result<(), oneshot::error::RecvError> = rx.await;
+    ///         res
+    ///     }
+    /// );
+    ///
+    /// tx1.send(()).unwrap();
+    /// // Drop the second sender so that `rx2` resolves to `Canceled`.
+    /// drop(tx2);
+    ///
+    /// // Unlike `try_for_each_concurrent`, tx3 also needs to be resolved
+    /// // before the future will finish execution. This causes `now_or_never` to
+    /// // return None.
+    /// let mut fut = std::pin::pin!(fut);
+    /// assert_eq!(fut.as_mut().now_or_never(), None);
+    ///
+    /// tx3.send(()).unwrap();
+    ///
+    /// // The final result is an error because the second future
+    /// // resulted in an error.
+    /// fut.await.unwrap_err();
+    /// # }
+    /// ```
+    #[cfg(not(futures_no_atomic_cas))]
+    #[cfg(feature = "alloc")]
+    fn for_each_concurrent_then_try<Fut, F>(
+        self,
+        limit: impl Into<Option<usize>>,
+        f: F,
+    ) -> super::ForEachConcurrentThenTry<Self, Fut, F>
+    where
+        F: FnMut(Self::Ok) -> Fut,
+        Fut: core::future::Future<Output = Result<(), Self::Error>>,
+        Self: Sized,
+    {
+        assert_future::<Result<(), Self::Error>, _>(super::ForEachConcurrentThenTry::new(
+            self,
+            limit.into(),
+            f,
+        ))
+    }
+
     /// Attempt to transform a stream into a collection, returning a future representing the result
     /// of that computation.
     ///
