@@ -1,9 +1,9 @@
-use core::fmt;
-use core::num::NonZeroUsize;
-use core::pin::Pin;
-use futures_core::future::{FusedFuture, Future};
-use futures_core::stream::TryStream;
-use futures_core::task::{Context, Poll};
+use core::{fmt, num::NonZeroUsize, pin::Pin};
+use futures_core::{
+    future::{FusedFuture, Future},
+    stream::TryStream,
+    task::{Context, Poll},
+};
 use futures_util::stream::{FuturesUnordered, StreamExt};
 use pin_project_lite::pin_project;
 
