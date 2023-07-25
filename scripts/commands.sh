@@ -28,6 +28,13 @@ run_test() {
     run_cargo_hack test --lib --bins --tests --benches --examples
 }
 
+run_nextest() {
+    check_cargo_hack
+
+    echo_err "Running non-doc tests"
+    run_cargo_hack nextest run --all-targets
+}
+
 run_doctest() {
     echo_err "Running doctests"
     cargo test --doc
@@ -74,7 +81,7 @@ run_cargo_hack_no_std() {
 }
 
 if [[ $# -eq 0 ]]; then
-    echo_err "Usage: with-feature-powerset.sh [b|build|t|test|dt|doctest|build-no-std]"
+    echo_err "Usage: commands.sh [b|build|t|test|nt|nextest|dt|doctest|build-no-std]"
     exit 1
 fi
 
@@ -83,21 +90,22 @@ while [[ "$#" -gt 0 ]]; do
         +*) CARGO="$CARGO $1" ;;
         b|build) run_build ;;
         t|test) run_test ;;
+        nt|nextest) run_nextest ;;
         dt|doctest) run_doctest ;;
         build-no-std)
             shift;
             case $1 in
                 --target) build_target="$2"; shift ;;
-                "") echo_err "Usage: with-feature-powerset.sh build-no-std --target <target>"; exit 1 ;;
+                "") echo_err "Usage: commands.sh build-no-std --target <target>"; exit 1 ;;
             esac
 
             if [[ -z "${build_target:-}" ]]; then
-                echo_err "Usage: with-feature-powerset.sh build-no-std --target <target>"
+                echo_err "Usage: commands.sh build-no-std --target <target>"
                 exit 1
             fi
 
             run_build_no_std "$build_target" ;;
-        -h|--help) echo "Usage: with-feature-powerset.sh [b|build|t|test|test-no-std]"; exit 0 ;;
+        -h|--help) echo "Usage: commands.sh [b|build|t|test|test-no-std]"; exit 0 ;;
         *) echo "Unknown parameter passed: $1"; exit 1 ;;
     esac
     shift

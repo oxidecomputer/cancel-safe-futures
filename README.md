@@ -10,7 +10,7 @@ Alternative futures adapters that are more cancellation-aware.
 
 ## What is this crate?
 
-This crate solves two related but distinct problems:
+This crate solves a few related but distinct problems:
 
 ### Cancel-safe futures adapters
 
@@ -79,6 +79,21 @@ The `then_try` family includes:
 #### Example
 
 For a detailed example, see the documentation for the `join_then_try` macro.
+
+### Cooperative cancellation
+
+Executors like Tokio support forcible cancellation for async tasks via facilities like
+`tokio::task::JoinHandle::abort`. However, this can cause cancellations at any arbitrary await
+point. If the future is in the middle of cancel-unsafe code, this can cause invariant violations
+or other issues.
+
+Instead, async cancellation can be done cooperatively: code can check for cancellation
+explicitly via `tokio::select!`. This crate provides the `coop_cancel` module that can be
+used to accomplish that goal.
+
+#### Example
+
+For a detailed example, see the documentation for `coop_cancel`.
 
 ## Notes
 
