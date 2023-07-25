@@ -53,6 +53,9 @@ jobs:
         run: ./scripts/commands.sh build
       - name: Test
         run: ./scripts/commands.sh test
+      - name: Run doctests
+        if: matrix.rust-version == 'stable'
+        run: ./scripts/commands.sh doctest
 
   no-std:
     name: Build no_std for ${{ matrix.target }}

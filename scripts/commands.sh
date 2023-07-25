@@ -26,7 +26,9 @@ run_test() {
 
     echo_err "Running non-doc tests"
     run_cargo_hack test --lib --bins --tests --benches --examples
+}
 
+run_doctest() {
     echo_err "Running doctests"
     cargo test --doc
 
@@ -72,7 +74,7 @@ run_cargo_hack_no_std() {
 }
 
 if [[ $# -eq 0 ]]; then
-    echo_err "Usage: with-feature-powerset.sh [b|build|t|test|build-no-std]"
+    echo_err "Usage: with-feature-powerset.sh [b|build|t|test|dt|doctest|build-no-std]"
     exit 1
 fi
 
@@ -81,6 +83,7 @@ while [[ "$#" -gt 0 ]]; do
         +*) CARGO="$CARGO $1" ;;
         b|build) run_build ;;
         t|test) run_test ;;
+        dt|doctest) run_doctest ;;
         build-no-std)
             shift;
             case $1 in
