@@ -1,12 +1,12 @@
 //! A multi-producer, single-consumer channel for cooperative (explicit) cancellation.
 //!
-//! This is similar in nature to a [`tokio::task::AbortCanceler`], except it uses a cooperative model
+//! This is similar in nature to a [`tokio::task::AbortHandle`], except it uses a cooperative model
 //! for cancellation.
 //!
 //! # Motivation
 //!
 //! Executors like Tokio support forcible cancellation for async tasks via facilities like
-//! [`tokio::task::JoinCanceler::abort`]. However, this causes cancellations at any arbitrary await
+//! [`tokio::task::JoinHandle::abort`]. However, this causes cancellations at any arbitrary await
 //! point. This is often not desirable because it can lead to invariant violations.
 //!
 //! For example, consider this code that consists of both the cancel-safe
@@ -40,7 +40,7 @@
 //! `bytes_written` is sent over `self.bytes_written_channel`. This means that cancelling at
 //! await point (1) is okay, but cancelling at await point (2) is not.
 //!
-//! If we use [`tokio::task::JoinCanceler::abort`] to cancel the task, it is possible that the task
+//! If we use [`tokio::task::JoinHandle::abort`] to cancel the task, it is possible that the task
 //! is cancelled at await point (2), breaking the invariant. Instead, we can use cooperative
 //! cancellation with a `select!` loop.
 //!
@@ -189,7 +189,7 @@ impl<T> Canceler<T> {
                 dropped_receiver,
                 _marker: PhantomData,
             }),
-            Err(error) => return Err(error.0.message),
+            Err(error) => Err(error.0.message),
         }
     }
 }
