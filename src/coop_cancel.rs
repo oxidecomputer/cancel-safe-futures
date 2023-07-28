@@ -179,14 +179,13 @@ impl<T> fmt::Debug for Canceler<T> {
 impl<T> Canceler<T> {
     /// Performs a cancellation with a message.
     ///
-    /// This sends the message immediately, and returns a [`Waiter`] that can be
-    /// optionally waited against to block until the corresponding [`Receiver`] is
-    /// dropped.
+    /// This sends the message immediately, and returns a [`Waiter`] that can be optionally waited
+    /// against to block until the corresponding [`Receiver`] is dropped.
     ///
-    /// The message
+    /// Only the first message ever sent via any `Canceler` is received by the [`Receiver`].
     ///
-    /// Returns `Err(message)` if the corresponding [`Receiver`] has already been dropped,
-    /// which means that the cancel operation failed.
+    /// Returns `Err(message)` if the corresponding [`Receiver`] has already been dropped, which
+    /// means that the cancel operation failed.
     pub fn cancel(&self, message: T) -> Result<Waiter<T>, T> {
         let (message, dropped_receiver) = CancelPayload::new(message);
         match self.sender.send(message) {
