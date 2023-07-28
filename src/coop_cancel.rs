@@ -94,6 +94,7 @@
 //! [`drain`](https://docs.rs/drain) crate. This module and `drain` can be combined: create a task
 //! that listens to a [`Receiver`], and notify downstream receivers via `drain` in that task.
 
+use crate::support::statically_unreachable;
 use core::{
     fmt,
     future::Future,
@@ -103,8 +104,6 @@ use core::{
 };
 use futures_util::FutureExt;
 use tokio::sync::{mpsc, oneshot};
-
-use crate::support::statically_unreachable;
 
 /// Creates and returns a cooperative cancellation pair.
 ///
@@ -238,13 +237,11 @@ impl<T> Future for Waiter<T> {
     type Output = ();
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut core::task::Context<'_>) -> Poll<Self::Output> {
-        match ready!(self.as_mut().dropped_receiver.poll_unpin(cx)) {
-            Ok(_) => {
-                // Never is uninhabited.
-                statically_unreachable()
-            }
-            Err(_) => {}
+        if ready!(self.as_mut().dropped_receiver.poll_unpin(cx)).is_ok() {
+            // Never is uninhabited.
+            statically_unreachable();
         }
+
         Poll::Ready(())
     }
 }
