@@ -1,7 +1,6 @@
 #![cfg(feature = "std")]
 
 use std::convert::Infallible;
-
 use tokio::sync::oneshot;
 #[cfg(not(tokio_wasm_not_wasi))]
 use tokio::test as maybe_tokio_test;

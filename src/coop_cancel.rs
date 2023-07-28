@@ -85,10 +85,13 @@
 //! [`drain`](https://docs.rs/drain) crate. [`Canceler`] and `drain` can be combined: create a task
 //! that listens to a [`Receiver`], and notify other receivers via `drain` in that task.
 
-use core::future::Future;
-use core::pin::Pin;
-use core::task::{ready, Poll};
-use core::{fmt, marker::PhantomData};
+use core::{
+    fmt,
+    future::Future,
+    marker::PhantomData,
+    pin::Pin,
+    task::{ready, Poll},
+};
 use futures_util::FutureExt;
 use tokio::sync::{mpsc, oneshot};
 
