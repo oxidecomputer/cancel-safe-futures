@@ -237,7 +237,9 @@ impl<T> Future for Waiter<T> {
     type Output = ();
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut core::task::Context<'_>) -> Poll<Self::Output> {
-        if ready!(self.as_mut().dropped_receiver.poll_unpin(cx)).is_ok() {
+        // Redundant pattern matching is required for statically_unreachable to work.
+        #[allow(clippy::redundant_pattern_matching)]
+        if let Ok(_) = ready!(self.as_mut().dropped_receiver.poll_unpin(cx)) {
             // Never is uninhabited.
             statically_unreachable();
         }
