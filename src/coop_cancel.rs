@@ -95,6 +95,8 @@ use core::{
 use futures_util::FutureExt;
 use tokio::sync::{mpsc, oneshot};
 
+use crate::support::statically_unreachable;
+
 /// Creates and returns a cooperative cancellation pair.
 ///
 /// For more information, see [the module documentation](`self`).
@@ -227,8 +229,13 @@ impl<T> Future for Waiter<T> {
     type Output = ();
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut core::task::Context<'_>) -> Poll<Self::Output> {
-        // We can only receive an error here since a `Never` cannot be constructed.
-        ready!(self.as_mut().dropped_receiver.poll_unpin(cx)).unwrap_err();
+        match ready!(self.as_mut().dropped_receiver.poll_unpin(cx)) {
+            Ok(_) => {
+                // Never is uninhabited.
+                statically_unreachable()
+            }
+            Err(_) => {}
+        }
         Poll::Ready(())
     }
 }
