@@ -77,12 +77,12 @@
 //!     }
 //! }
 //! ```
-
+//!
 //! # Notes
 //!
 //! This module implements "fan-in" cancellation -- it supports many cancelers but only one
 //! receiver. For "fan-out" cancellation with one sender and many receivers, consider using the
-//! [`drain`](https://docs.rs/drain) crate. [`Canceler`] and `drain` can be combined: create a task
+//! [`drain`](https://docs.rs/drain) crate. This module and `drain` can be combined: create a task
 //! that listens to a [`Receiver`], and notify downstream receivers via `drain` in that task.
 
 use core::{
