@@ -88,6 +88,12 @@ async fn multiple_messages() {
         assert_pending!(handle1.poll(), "handle1: receiver hasn't been dropped yet");
         assert_pending!(handle2.poll(), "handle2: receiver hasn't been dropped yet");
 
+        // receiver.recv() should send None even though a second cancellation was sent.
+        assert!(
+            receiver.recv().await.is_none(),
+            "only one cancellation message can be received"
+        );
+
         std::mem::drop(receiver);
 
         assert_ready!(handle1.poll());

@@ -10,8 +10,7 @@
 //! point. This is often not desirable because it can lead to invariant violations.
 //!
 //! For example, consider this code that consists of both the cancel-safe
-//! [`AsyncWriteExt::write_buf`](tokio::io::AsyncWriteExt::write_buf) and some cancel-unsafe
-//! code:
+//! [`AsyncWriteExt::write_buf`](tokio::io::AsyncWriteExt::write_buf) and some cancel-unsafe code:
 //!
 //! ```
 //! use bytes::Buf;
@@ -37,11 +36,11 @@
 //! ```
 //!
 //! The invariant upheld by `DataWriter` is that if some bytes are written, the corresponding
-//! `bytes_written` is sent over `self.bytes_written_channel`. This means that cancelling at
-//! await point (1) is okay, but cancelling at await point (2) is not.
+//! `bytes_written` is sent over `self.bytes_written_channel`. This means that cancelling at await
+//! point (1) is okay, but cancelling at await point (2) is not.
 //!
-//! If we use [`tokio::task::JoinHandle::abort`] to cancel the task, it is possible that the task
-//! is cancelled at await point (2), breaking the invariant. Instead, we can use cooperative
+//! If we use [`tokio::task::JoinHandle::abort`] to cancel the task, it is possible that the task is
+//! cancelled at await point (2), breaking the invariant. Instead, we can use cooperative
 //! cancellation with a `select!` loop.
 //!
 //! ```
@@ -77,6 +76,16 @@
 //!     }
 //! }
 //! ```
+//!
+//! # Attaching a cancel message
+//!
+//! [`Canceler::cancel`] can be used to send a message of any type `T` along with the cancellation
+//! event. This message is received via the `Some` variant of [`Receiver::recv`].
+//!
+//! For a given [`Receiver`], only the first message sent via any corresponding [`Canceler`] is
+//! received. Subsequent calls to [`Receiver::recv`] will always return `None`, no matter whether
+//! further cancellation messages are sent. (This can change in the future if there's a good use
+//! case for it.)
 //!
 //! # Notes
 //!
