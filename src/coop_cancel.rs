@@ -80,10 +80,10 @@
 
 //! # Notes
 //!
-//! This module implements "fan-in" cancellation -- it supports many Cancelers but only one
+//! This module implements "fan-in" cancellation -- it supports many cancelers but only one
 //! receiver. For "fan-out" cancellation with one sender and many receivers, consider using the
 //! [`drain`](https://docs.rs/drain) crate. [`Canceler`] and `drain` can be combined: create a task
-//! that listens to a [`Receiver`], and notify other receivers via `drain` in that task.
+//! that listens to a [`Receiver`], and notify downstream receivers via `drain` in that task.
 
 use core::{
     fmt,
@@ -110,6 +110,8 @@ pub fn new_pair<T>() -> (Canceler<T>, Receiver<T>) {
 }
 
 /// A cooperative cancellation receiver.
+///
+/// For more information, see [the module documentation](`self`).
 pub struct Receiver<T> {
     receiver: mpsc::UnboundedReceiver<CancelPayload<T>>,
     // This is cached and stored here until `Self` is dropped. The senders are really just a way to
@@ -149,9 +151,9 @@ impl<T> Receiver<T> {
     }
 }
 
-/// A cooperative cancellation Canceler.
+/// A cooperative cancellation sender.
 ///
-/// This is the "send" side of the cooperative cancellation pair.
+/// For more information, see [the module documentation](`self`).
 pub struct Canceler<T> {
     // This is an unbounded sender to make Self::cancel not async. In general we
     // don't expect too many messages to ever be sent via this channel.
