@@ -11,16 +11,14 @@ pub struct Flag {
     failed: AtomicBool,
 }
 
-// Note that the Ordering uses to access the `failed` field of `Flag` below is
-// always `Relaxed`, and that's because this isn't actually protecting any data,
-// it's just a flag whether we've panicked or not.
+// Note that the Ordering uses to access the `failed` field of `Flag` below is always `Relaxed`, and
+// that's because this isn't actually protecting any data, it's just a flag whether we've panicked
+// or not.
 //
-// The actual location that this matters is when a mutex is **locked** which is
-// where we have external synchronization ensuring that we see memory
-// reads/writes to this flag.
+// The actual location that this matters is when a mutex is **locked** which is where we have
+// external synchronization ensuring that we see memory reads/writes to this flag.
 //
-// As a result, if it matters, we should see the correct value for `failed` in
-// all cases.
+// As a result, if it matters, we should see the correct value for `failed` in all cases.
 
 impl Flag {
     #[inline]
@@ -77,16 +75,5 @@ where
     match result {
         Ok(t) => Ok(f(t)),
         Err(error) => Err(PoisonError::new(f(error.into_inner()))),
-    }
-}
-
-pub async fn map_result_async<T, U, F, Fut>(result: LockResult<T>, f: F) -> LockResult<U>
-where
-    F: FnOnce(T) -> Fut,
-    Fut: Future<Output = U>,
-{
-    match result {
-        Ok(t) => Ok(f(t).await),
-        Err(error) => Err(PoisonError::new(f(error.into_inner()).await)),
     }
 }

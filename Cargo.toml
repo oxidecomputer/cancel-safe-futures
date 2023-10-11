@@ -38,6 +38,7 @@ tokio-test = "0.4.0"
 default = ["std", "macros"]
 std = ["alloc", "futures-core/std", "futures-sink/std", "futures-util/std", "dep:tokio"]
 alloc = ["futures-core/alloc", "futures-sink/alloc", "futures-util/alloc"]
+parking_lot = ["tokio?/parking_lot"]
 macros = []
 
 # Internal-only feature, used for documentation and doctests. Not part of the public API.
