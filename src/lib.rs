@@ -1,4 +1,4 @@
-#![no_std]
+#![cfg_attr(not(feature = "std"), no_std)]
 
 //! Alternative futures adapters that are more cancellation-aware.
 //!
@@ -130,6 +130,7 @@ pub mod prelude;
 pub mod sink;
 pub mod stream;
 mod support;
+pub mod sync;
 
 pub use sink::SinkExt;
 pub use stream::TryStreamExt;
