@@ -4,8 +4,6 @@ use std::{
     thread,
 };
 
-use futures_core::Future;
-
 #[derive(Debug)]
 pub struct Flag {
     failed: AtomicBool,

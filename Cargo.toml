@@ -42,4 +42,4 @@ parking_lot = ["tokio?/parking_lot"]
 macros = []
 
 # Internal-only feature, used for documentation and doctests. Not part of the public API.
-internal-docs = ["dep:futures", "dep:tokio", "tokio?/io-util", "tokio?/macros", "tokio?/rt"]
+internal-docs = ["dep:futures", "dep:tokio", "tokio?/io-util", "tokio?/macros", "tokio?/rt", "tokio?/rt-multi-thread"]

@@ -1,9 +1,106 @@
-use std::fmt;
-use std::sync::{LockResult, TryLockError, TryLockResult};
-
 use super::poison;
+use std::{
+    fmt,
+    sync::{LockResult, TryLockError, TryLockResult},
+};
 use tokio::sync::MutexGuard;
 
+/// A cancel-safe and panic-safe variant of [`tokio::sync::Mutex`].
+///
+/// This is a wrapper on top of a [`tokio::sync::Mutex`] which adds two further guarantees: *panic
+/// safety* and *cancel safety*. Both of these guarantees are implemented to ensure that mutex
+/// invariants aren't violated to the greatest extent possible.
+///
+/// # The basic idea
+///
+/// A mutex is a synchronization structure which allows only one task to access some data at a time.
+/// The general idea behind a mutex is that the data it owns has some *invariants*.
+///
+/// When a task acquires a lock on the mutex, it enters a *critical section*. Within this critical
+/// section, the invariants can temporarily be *violated*. It is expected that the task will restore
+/// those invariants before releasing the lock.
+///
+/// For example, let's say that we have a mutex which guards two `HashMap`s. The invariants of this
+/// mutex are that the two `HashMap`s always contain the same keys. With a Tokio mutex, you might
+/// write something like:
+///
+/// ```rust
+/// use std::collections::HashMap;
+/// use tokio::sync::Mutex;
+///
+/// struct MyStruct {
+///     map1: HashMap<String, String>,
+///     map2: HashMap<String, u32>,
+/// }
+///
+/// impl MyStruct {
+///     fn new() -> Self {
+///         Self {
+///             map1: HashMap::new(),
+///             map2: HashMap::new(),
+///         }
+///     }
+/// }
+///
+/// #[tokio::main]
+/// async fn main() {
+///     let mutex = Mutex::new(MyStruct::new());
+///
+///     let mut guard = mutex.lock().await;
+///     guard.map1.insert("hello".to_owned(), "world".to_owned());  // (1)
+///     // ... some code in between
+///     guard.map2.insert("hello".to_owned(), 42);  // (2)
+///
+///     // (This happens implicitly but is made explicit here.)
+///     std::mem::drop(guard);
+/// }
+/// ```
+///
+/// At point (1) we've temporarily violated the invariant that `map1` and `map2` contain the same
+/// keys. However, at point (2) the invariant is restored.
+///
+/// * But what if the task panics between (1) and (2)? In that case, the mutex is left in a state
+///   where the invariants are violated. This is a problem because this is an inconsistent state --
+///   other tasks which acquire the lock can no longer assume that the invariants are upheld.
+///
+///   This is the problem that *poisoning* solves.
+///
+/// * In async code, what if there's an await point between (1) and (2), and the future is dropped
+///   at that await point? Then, too, the invariants are violated. With synchronous code the only
+///   possible interruptions in the middle of a critical section are due to panics, but with async
+///   code cancellations are a fact of life.
+///
+///   This is the problem that *cancel safety* solves.
+///
+/// # Panic safety with poisoning
+///
+/// Like [`std::sync::Mutex`] but *unlike* [`tokio::sync::Mutex`], this mutex implements a strategy
+/// called "poisoning" where a mutex is considered poisoned whenever a task panics while holding the
+/// mutex. Once a mutex is poisoned, all other tasks are unable to access the data by default.
+///
+/// This means that the [`lock`](Self::lock) and [`try_lock`](Self::try_lock) methods return a
+/// [`Result`] which indicates whether a mutex has been poisoned or not. Most usage of a mutex will
+/// simply [`unwrap()`](Result::unwrap) these results, propagating panics among tasks to ensure that
+/// a possibly invalid invariant is not witnessed.
+///
+/// A poisoned mutex, however, does not prevent all access to the underlying data. The
+/// [`PoisonError`](std::sync::PoisonError) type has an
+/// [`into_inner`](std::sync::PoisonError::into_inner) method which will return the guard that would
+/// have otherwise been returned on a successful lock. This allows access to the data, despite the
+/// lock being poisoned.
+///
+/// # Cancel safety
+///
+/// To prevent async cancellations in the middle of the critical section, this mutex enforces the
+/// conservative policy of not allowing async blocks to be within a critical section. This is done
+/// by returning [`ActionPermit`] instances which only provide access to the guarded data within a
+/// synchronous closure, as opposed to the RAII style that [`std::sync::MutexGuard`] and
+/// [`tokio::sync::MutexGuard`] use.
+///
+/// It is possible to run async code within this closure by using a function like
+/// [`tokio::runtime::Handle::block_on`]. But note that there are no cancel safety issues with that,
+/// since futures run via `Handle::block_on` cannot be cancelled. (The function can panic, in which
+/// case the mutex will be poisoned.)
 pub struct Mutex<T: ?Sized> {
     poison: poison::Flag,
     inner: tokio::sync::Mutex<T>,
@@ -51,15 +148,18 @@ impl<T: ?Sized> Mutex<T> {
         }
     }
 
-    /// Locks this mutex, causing the current task to yield until the lock has
-    /// been acquired.  When the lock has been acquired, function returns a
-    /// [`ActionPermit`].
+    /// Locks this mutex, causing the current task to yield until the lock has been acquired.  When
+    /// the lock has been acquired, function returns a [`ActionPermit`].
+    ///
+    /// # Errors
+    ///
+    /// If another user of this mutex panicked while holding the mutex, then this call will return
+    /// an error once the mutex is acquired.
     ///
     /// # Cancel safety
     ///
-    /// This method uses a queue to fairly distribute locks in the order they
-    /// were requested. Cancelling a call to `lock` makes you lose your place in
-    /// the queue.
+    /// This method uses a queue to fairly distribute locks in the order they were requested.
+    /// Cancelling a call to `lock` makes you lose your place in the queue.
     ///
     /// # Examples
     ///
@@ -85,14 +185,19 @@ impl<T: ?Sized> Mutex<T> {
     /// This method is intended for use cases where you need to use this mutex in asynchronous code
     /// as well as in synchronous code.
     ///
+    /// # Errors
+    ///
+    /// If another user of this mutex panicked while holding the mutex, then this call will return
+    /// an error once the mutex is acquired.
+    ///
     /// # Panics
     ///
     /// This function panics if called within an asynchronous execution context.
     ///
     ///   - If you find yourself in an asynchronous execution context and needing to call some
     ///     (synchronous) function which performs one of these `blocking_` operations, then consider
-    ///     wrapping that call inside [`spawn_blocking()`][crate::runtime::Handle::spawn_blocking]
-    ///     (or [`block_in_place()`][crate::task::block_in_place]).
+    ///     wrapping that call inside [`spawn_blocking()`][tokio::runtime::Handle::spawn_blocking]
+    ///     (or [`block_in_place()`][tokio::task::block_in_place]).
     ///
     /// # Examples
     ///
@@ -102,7 +207,7 @@ impl<T: ?Sized> Mutex<T> {
     ///
     /// #[tokio::main]
     /// async fn main() {
-    ///     let mutex =  Arc::new(Mutex::new(1));
+    ///     let mutex = Arc::new(Mutex::new(1));
     ///     let permit = mutex.lock().await.unwrap();
     ///
     ///     let mutex1 = Arc::clone(&mutex);
@@ -129,10 +234,14 @@ impl<T: ?Sized> Mutex<T> {
         ActionPermit::new(guard, &self.poison)
     }
 
-    /// Attempts to acquire the lock, and returns [`TryLockError`] if the
-    /// lock is currently held somewhere else.
+    /// Attempts to acquire the lock.
     ///
-    /// [`TryLockError`]: TryLockError
+    /// # Errors
+    ///
+    /// Returns [`TryLockError::WouldBlock`] if the lock is currently held somewhere else.
+    ///
+    /// Returns [`TryLockError::Poisoned`] if another thread panicked while holding the lock.
+    ///
     /// # Examples
     ///
     /// ```
@@ -208,6 +317,11 @@ impl<T: ?Sized> Mutex<T> {
 
     /// Consumes the mutex, returning the underlying data.
     ///
+    /// # Errors
+    ///
+    /// If another user of this mutex panicked while holding the mutex, then this call will return
+    /// an error.
+    ///
     /// # Examples
     ///
     /// ```
@@ -242,12 +356,12 @@ impl<T: ?Sized + fmt::Debug> fmt::Debug for Mutex<T> {
     }
 }
 
-/// A token that grants the ability to run one closure against the data guarded
-/// by a [`Mutex`].
+/// A token that grants the ability to run one closure against the data guarded by a [`Mutex`].
 ///
-/// This is produced by the `lock` family of operations on [`Mutex`] and is
-/// intended to provide a more robust API than the traditional "smart pointer"
-/// mutex guard.
+/// This is produced by the `lock` family of operations on [`Mutex`] and is intended to provide
+/// robust cancel safety.
+///
+/// For more information, see the documentation for [`Mutex`].
 pub struct ActionPermit<'a, T: ?Sized> {
     poison: &'a poison::Flag,
     poison_guard: poison::Guard,
@@ -264,10 +378,49 @@ impl<'a, T: ?Sized> ActionPermit<'a, T> {
         })
     }
 
-    /// Runs a closure with access to the guarded data, consuming the permit in
-    /// the process.
+    /// Runs a closure with access to the guarded data, consuming the permit in the process.
+    ///
+    /// The closure runs in a blocking context created by [`tokio::task::block_in_place`], so it is
+    /// safe to use blocking operations within it.
+    ///
+    /// # Examples
+    ///
+    /// Basic usage:
+    ///
+    /// ```
+    /// use cancel_safe_futures::sync::Mutex;
+    ///
+    /// #[tokio::main]
+    /// async fn main() {
+    ///     let mutex = Mutex::new(1);
+    ///
+    ///     let mut permit = mutex.lock().await.unwrap();
+    ///     permit.perform(|n| *n = 2);
+    /// }
+    /// ```
+    ///
+    /// Executing async code within the closure:
+    ///
+    /// ```
+    /// use cancel_safe_futures::sync::Mutex;
+    /// use std::time::Duration;
+    /// use tokio::runtime::Handle;
+    ///
+    /// #[tokio::main]
+    /// async fn main() {
+    ///     let mutex = Mutex::new(1);
+    ///
+    ///     let mut permit = mutex.lock().await.unwrap();
+    ///     permit.perform(|n| {
+    ///         let handle = tokio::runtime::Handle::current();
+    ///         handle.block_on(tokio::time::sleep(Duration::from_millis(100)));
+    ///         *n = 2;
+    ///     });
+    ///
+    ///     assert_eq!(mutex.into_inner().unwrap(), 2);
+    /// }
     pub fn perform<R>(mut self, action: impl FnOnce(&mut T) -> R) -> R {
-        action(&mut *self.guard)
+        tokio::task::block_in_place(|| action(&mut *self.guard))
 
         // Note: we're relying on the Drop impl for `self` to unlock the mutex.
     }
