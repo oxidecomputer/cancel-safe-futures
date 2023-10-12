@@ -1,11 +1,12 @@
 #![cfg(feature = "std")]
 
 use cancel_safe_futures::sync::Mutex;
-use std::sync::{Arc, TryLockError};
-use std::time::Duration;
+use std::{
+    sync::{Arc, TryLockError},
+    time::Duration,
+};
 use tokio::time::{interval, timeout};
-use tokio_test::task::spawn;
-use tokio_test::{assert_pending, assert_ready};
+use tokio_test::{assert_pending, assert_ready, task::spawn};
 
 #[test]
 fn straight_execution() {
