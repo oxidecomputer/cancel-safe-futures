@@ -11,7 +11,7 @@ use tokio::sync::MutexGuard;
 /// safety* and *cancel safety*. Both of these guarantees are implemented to ensure that mutex
 /// invariants aren't violated to the greatest extent possible.
 ///
-/// # The basic idea
+/// # Motivation
 ///
 /// A mutex is a synchronization structure which allows only one task to access some data at a time.
 /// The general idea behind a mutex is that the data it owns has some *invariants*. When a task
@@ -94,11 +94,21 @@ use tokio::sync::MutexGuard;
 ///
 /// # Cancel safety
 ///
-/// To prevent async cancellations in the middle of the critical section, this mutex has a
-/// conservative policy of not allowing async blocks to be within a critical section. This is done
-/// by returning [`ActionPermit`] instances which only provide access to the guarded data within a
-/// synchronous closure, as opposed to the RAII style that [`std::sync::MutexGuard`] and
-/// [`tokio::sync::MutexGuard`] use.
+/// To prevent async cancellations in the middle of the critical section, this mutex does not allow
+/// await points to be within a critical section. This is done by returning [`ActionPermit`]
+/// instances which only provide access to the guarded data within a synchronous closure, as opposed
+/// to the RAII style that [`std::sync::MutexGuard`] and [`tokio::sync::MutexGuard`] use.
+///
+/// This does mean that there are patterns that are not possible with this mutex. For example, you
+/// cannot perform a pattern where:
+///
+/// 1. You acquire a lock *L₁*.
+/// 2. You acquire a second lock *L₂*.
+/// 3. You release *L₁*.
+/// 4. You release *L₂*.
+///
+/// But generally speaking, you should release *L₂* before *L₁*. If you really do need to do this,
+/// [`std::sync::Mutex`] and [`tokio::sync::Mutex`] remain available.
 ///
 /// # Features
 ///
@@ -106,12 +116,12 @@ use tokio::sync::MutexGuard;
 ///
 /// - An `OwnedActionPermit`, similar to [`tokio::sync::OwnedMutexGuard`].
 /// - A `MappedActionPermit`, similar to [`tokio::sync::MappedMutexGuard`].
-pub struct Mutex<T: ?Sized> {
+pub struct CMutex<T: ?Sized> {
     poison: poison::Flag,
     inner: tokio::sync::Mutex<T>,
 }
 
-impl<T: ?Sized> Mutex<T> {
+impl<T: ?Sized> CMutex<T> {
     /// Creates a new lock in an unlocked state ready for use.
     ///
     /// # Examples
@@ -342,7 +352,7 @@ impl<T: ?Sized> Mutex<T> {
     }
 }
 
-impl<T: ?Sized + fmt::Debug> fmt::Debug for Mutex<T> {
+impl<T: ?Sized + fmt::Debug> fmt::Debug for CMutex<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut d = f.debug_struct("Mutex");
         match self.try_lock() {
@@ -354,12 +364,12 @@ impl<T: ?Sized + fmt::Debug> fmt::Debug for Mutex<T> {
     }
 }
 
-/// A token that grants the ability to run one closure against the data guarded by a [`Mutex`].
+/// A token that grants the ability to run one closure against the data guarded by a [`CMutex`].
 ///
-/// This is produced by the `lock` family of operations on [`Mutex`] and is intended to provide
+/// This is produced by the `lock` family of operations on [`CMutex`] and is intended to provide
 /// robust cancel safety.
 ///
-/// For more information, see the documentation for [`Mutex`].
+/// For more information, see the documentation for [`CMutex`].
 pub struct ActionPermit<'a, T: ?Sized> {
     poison: &'a poison::Flag,
     poison_guard: poison::Guard,

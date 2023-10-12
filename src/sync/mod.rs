@@ -1,7 +1,8 @@
 //! Alternative synchronization primitives that are more cancellation-aware.
 //!
-//! Currently, this crate contains a [`Mutex`] implementation that is more cancellation-aware. For
-//! more about how this differs from [`tokio::sync::Mutex`], see the documentation for [`Mutex`].
+//! Currently, this crate contains [`CMutex`], which is a variant on an async mutex that is more
+//! cancel-safe. For more about how this differs from [`tokio::sync::Mutex`], see the documentation
+//! for [`CMutex`].
 
 #[cfg(feature = "std")]
 mod mutex;

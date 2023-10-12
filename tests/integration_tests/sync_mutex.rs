@@ -1,6 +1,6 @@
 #![cfg(feature = "std")]
 
-use cancel_safe_futures::sync::Mutex;
+use cancel_safe_futures::sync::CMutex;
 use std::{
     sync::{Arc, TryLockError},
     time::Duration,
@@ -10,7 +10,7 @@ use tokio_test::{assert_pending, assert_ready, task::spawn};
 
 #[test]
 fn straight_execution() {
-    let l = Mutex::new(100);
+    let l = CMutex::new(100);
 
     {
         let mut t = spawn(l.lock());
@@ -39,7 +39,7 @@ fn straight_execution() {
 
 #[test]
 fn readiness() {
-    let l1 = Arc::new(Mutex::new(100));
+    let l1 = Arc::new(CMutex::new(100));
     let l2 = Arc::clone(&l1);
     let mut t1 = spawn(l1.lock());
     let mut t2 = spawn(l2.lock());
@@ -61,7 +61,7 @@ fn readiness() {
 /// violations don't apply.
 #[tokio::test]
 async fn aborted_future_1() {
-    let m1: Arc<Mutex<usize>> = Arc::new(Mutex::new(0));
+    let m1: Arc<CMutex<usize>> = Arc::new(CMutex::new(0));
     {
         let m2 = m1.clone();
         // Try to lock mutex in a future that is aborted prematurely
@@ -87,7 +87,7 @@ async fn aborted_future_1() {
 /// lock.
 #[tokio::test]
 async fn aborted_future_2() {
-    let m1: Arc<Mutex<usize>> = Arc::new(Mutex::new(0));
+    let m1: Arc<CMutex<usize>> = Arc::new(CMutex::new(0));
     {
         // Lock mutex
         let _lock = m1.lock().await;
@@ -112,7 +112,7 @@ async fn aborted_future_2() {
 /// Ensure a mutex is poisoned if a task panics in the middle of perform.
 #[tokio::test]
 async fn panicking_task() {
-    let m1: Arc<Mutex<usize>> = Arc::new(Mutex::new(0));
+    let m1: Arc<CMutex<usize>> = Arc::new(CMutex::new(0));
     {
         let m2 = m1.clone();
         tokio::task::spawn(async move {
@@ -134,7 +134,7 @@ async fn panicking_task() {
 
 #[test]
 fn try_lock() {
-    let m: Mutex<usize> = Mutex::new(0);
+    let m: CMutex<usize> = CMutex::new(0);
     {
         let g1 = m.try_lock();
         assert!(g1.is_ok());
@@ -148,7 +148,7 @@ fn try_lock() {
 #[tokio::test]
 async fn mutex_guard_debug_display() {
     let s = "internal";
-    let m = Mutex::new(s.to_string());
+    let m = CMutex::new(s.to_string());
     let permit = m.lock().await.unwrap();
     assert_eq!(format!("{:?}", s), format!("{:?}", permit));
     assert_eq!(s, format!("{}", permit));
@@ -157,7 +157,7 @@ async fn mutex_guard_debug_display() {
 #[tokio::test]
 async fn mutex_debug_display() {
     let s = "data";
-    let m = Arc::new(Mutex::new(s.to_string()));
+    let m = Arc::new(CMutex::new(s.to_string()));
     assert_eq!(
         format!("{:?}", m),
         r#"Mutex { data: "data", poisoned: false }"#
