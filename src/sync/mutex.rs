@@ -301,12 +301,10 @@ impl<T: ?Sized> Mutex<T> {
     /// ```
     /// use cancel_safe_futures::sync::Mutex;
     ///
-    /// fn main() {
-    ///     let mut mutex = Mutex::new(1);
+    /// let mut mutex = Mutex::new(1);
     ///
-    ///     let n = mutex.get_mut();
-    ///     *n = 2;
-    /// }
+    /// let n = mutex.get_mut();
+    /// *n = 2;
     /// ```
     pub fn get_mut(&mut self) -> &mut T {
         self.inner.get_mut()
