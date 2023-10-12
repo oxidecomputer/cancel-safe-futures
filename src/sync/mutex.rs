@@ -91,16 +91,11 @@ use tokio::sync::MutexGuard;
 ///
 /// # Cancel safety
 ///
-/// To prevent async cancellations in the middle of the critical section, this mutex enforces the
+/// To prevent async cancellations in the middle of the critical section, this mutex has a
 /// conservative policy of not allowing async blocks to be within a critical section. This is done
 /// by returning [`ActionPermit`] instances which only provide access to the guarded data within a
 /// synchronous closure, as opposed to the RAII style that [`std::sync::MutexGuard`] and
 /// [`tokio::sync::MutexGuard`] use.
-///
-/// It is possible to run async code within this closure by using a function like
-/// [`tokio::runtime::Handle::block_on`]. But note that there are no cancel safety issues with that,
-/// since futures run via `Handle::block_on` cannot be cancelled. (The function can panic, in which
-/// case the mutex will be poisoned.)
 pub struct Mutex<T: ?Sized> {
     poison: poison::Flag,
     inner: tokio::sync::Mutex<T>,
@@ -380,12 +375,10 @@ impl<'a, T: ?Sized> ActionPermit<'a, T> {
 
     /// Runs a closure with access to the guarded data, consuming the permit in the process.
     ///
-    /// The closure runs in a blocking context created by [`tokio::task::block_in_place`], so it is
-    /// safe to use blocking operations within it.
+    /// This is a synchronous closure, which means that it cannot have await points within it. This
+    /// guarantees cancel safety for this mutex.
     ///
     /// # Examples
-    ///
-    /// Basic usage:
     ///
     /// ```
     /// use cancel_safe_futures::sync::Mutex;
@@ -398,29 +391,8 @@ impl<'a, T: ?Sized> ActionPermit<'a, T> {
     ///     permit.perform(|n| *n = 2);
     /// }
     /// ```
-    ///
-    /// Executing async code within the closure:
-    ///
-    /// ```
-    /// use cancel_safe_futures::sync::Mutex;
-    /// use std::time::Duration;
-    /// use tokio::runtime::Handle;
-    ///
-    /// #[tokio::main]
-    /// async fn main() {
-    ///     let mutex = Mutex::new(1);
-    ///
-    ///     let mut permit = mutex.lock().await.unwrap();
-    ///     permit.perform(|n| {
-    ///         let handle = tokio::runtime::Handle::current();
-    ///         handle.block_on(tokio::time::sleep(Duration::from_millis(100)));
-    ///         *n = 2;
-    ///     });
-    ///
-    ///     assert_eq!(mutex.into_inner().unwrap(), 2);
-    /// }
     pub fn perform<R>(mut self, action: impl FnOnce(&mut T) -> R) -> R {
-        tokio::task::block_in_place(|| action(&mut *self.guard))
+        action(&mut *self.guard)
 
         // Note: we're relying on the Drop impl for `self` to unlock the mutex.
     }
