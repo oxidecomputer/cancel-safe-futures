@@ -14,13 +14,12 @@ use tokio::sync::MutexGuard;
 /// # The basic idea
 ///
 /// A mutex is a synchronization structure which allows only one task to access some data at a time.
-/// The general idea behind a mutex is that the data it owns has some *invariants*.
+/// The general idea behind a mutex is that the data it owns has some *invariants*. When a task
+/// acquires a lock on the mutex, it enters a *critical section*. Within this critical section, the
+/// invariants can temporarily be violated. It is expected that the task will restore those
+/// invariants before releasing the lock.
 ///
-/// When a task acquires a lock on the mutex, it enters a *critical section*. Within this critical
-/// section, the invariants can temporarily be *violated*. It is expected that the task will restore
-/// those invariants before releasing the lock.
-///
-/// For example, let's say that we have a mutex which guards two `HashMap`s. The invariants of this
+/// For example, let's say that we have a mutex which guards two `HashMap`s, with the invariant that
 /// mutex are that the two `HashMap`s always contain the same keys. With a Tokio mutex, you might
 /// write something like:
 ///
