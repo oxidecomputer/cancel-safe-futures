@@ -110,6 +110,44 @@ use tokio::sync::MutexGuard;
 /// But generally speaking, you should release *L₂* before *L₁*. If you really do need to do this,
 /// [`std::sync::Mutex`] and [`tokio::sync::Mutex`] remain available.
 ///
+/// # Examples
+///
+/// The above example, rewritten to use this mutex, would look like:
+///
+/// ```
+/// use cancel_safe_futures::sync::CMutex;
+/// use std::collections::HashMap;
+///
+/// struct MyStruct {
+///     map1: HashMap<String, String>,
+///     map2: HashMap<String, u32>,
+/// }
+///
+/// impl MyStruct {
+/// # /*
+///     fn new() -> Self { /* ... */ }
+/// # */
+/// #    fn new() -> Self {
+/// #        Self {
+/// #            map1: HashMap::new(),
+/// #            map2: HashMap::new(),
+/// #        }
+/// #    }
+/// }
+///
+/// #[tokio::main]
+/// async fn main() {
+///     let mutex = CMutex::new(MyStruct::new());
+///
+///     let mut permit = mutex.lock().await.unwrap();  // note unwrap() here
+///     permit.perform(|data| {
+///         data.map1.insert("hello".to_owned(), "world".to_owned());  // (1)
+///         // ... some code in between
+///         data.map2.insert("hello".to_owned(), 42);  // (2)
+///     });
+/// }
+/// ```
+///
 /// # Features
 ///
 /// Basic mutex operations are supported. In the future, this will support:
@@ -127,9 +165,9 @@ impl<T: ?Sized> CMutex<T> {
     /// # Examples
     ///
     /// ```
-    /// use cancel_safe_futures::sync::Mutex;
+    /// use cancel_safe_futures::sync::CMutex;
     ///
-    /// let lock = Mutex::new(5);
+    /// let lock = CMutex::new(5);
     /// ```
     #[track_caller]
     pub fn new(value: T) -> Self
@@ -147,9 +185,9 @@ impl<T: ?Sized> CMutex<T> {
     /// # Examples
     ///
     /// ```
-    /// use tokio::sync::Mutex;
+    /// use cancel_safe_futures::sync::CMutex;
     ///
-    /// static LOCK: Mutex<i32> = Mutex::const_new(5);
+    /// static LOCK: CMutex<i32> = CMutex::const_new(5);
     /// ```
     #[cfg(all(feature = "parking_lot", not(all(loom, test)),))]
     #[cfg_attr(doc_cfg, doc(cfg(feature = "parking_lot")))]
@@ -179,11 +217,11 @@ impl<T: ?Sized> CMutex<T> {
     /// # Examples
     ///
     /// ```
-    /// use cancel_safe_futures::sync::Mutex;
+    /// use cancel_safe_futures::sync::CMutex;
     ///
     /// #[tokio::main]
     /// async fn main() {
-    ///     let mutex = Mutex::new(1);
+    ///     let mutex = CMutex::new(1);
     ///
     ///     let mut permit = mutex.lock().await.unwrap();
     ///     permit.perform(|n| *n = 2);
@@ -212,12 +250,12 @@ impl<T: ?Sized> CMutex<T> {
     /// # Examples
     ///
     /// ```
-    /// use cancel_safe_futures::sync::Mutex;
+    /// use cancel_safe_futures::sync::CMutex;
     /// use std::sync::Arc;
     ///
     /// #[tokio::main]
     /// async fn main() {
-    ///     let mutex = Arc::new(Mutex::new(1));
+    ///     let mutex = Arc::new(CMutex::new(1));
     ///     let permit = mutex.lock().await.unwrap();
     ///
     ///     let mutex1 = Arc::clone(&mutex);
@@ -255,11 +293,11 @@ impl<T: ?Sized> CMutex<T> {
     /// # Examples
     ///
     /// ```
-    /// use cancel_safe_futures::sync::Mutex;
+    /// use cancel_safe_futures::sync::CMutex;
     ///
     /// #[tokio::main]
     /// async fn main() {
-    ///     let mutex = Mutex::new(1);
+    ///     let mutex = CMutex::new(1);
     ///
     ///     let permit = mutex.try_lock().unwrap();
     ///     permit.perform(|n| {
@@ -283,14 +321,14 @@ impl<T: ?Sized> CMutex<T> {
     /// # Examples
     ///
     /// ```
-    /// use cancel_safe_futures::sync::Mutex;
+    /// use cancel_safe_futures::sync::CMutex;
     /// use std::sync::Arc;
     /// use std::thread;
     ///
     /// # #[tokio::main]
     /// # async fn main() {
     ///
-    /// let mutex = Arc::new(Mutex::new(0));
+    /// let mutex = Arc::new(CMutex::new(0));
     /// let c_mutex = Arc::clone(&mutex);
     ///
     /// let _ = tokio::task::spawn(async move {
@@ -312,9 +350,9 @@ impl<T: ?Sized> CMutex<T> {
     /// # Examples
     ///
     /// ```
-    /// use cancel_safe_futures::sync::Mutex;
+    /// use cancel_safe_futures::sync::CMutex;
     ///
-    /// let mut mutex = Mutex::new(1);
+    /// let mut mutex = CMutex::new(1);
     ///
     /// let n = mutex.get_mut();
     /// *n = 2;
@@ -333,11 +371,11 @@ impl<T: ?Sized> CMutex<T> {
     /// # Examples
     ///
     /// ```
-    /// use cancel_safe_futures::sync::Mutex;
+    /// use cancel_safe_futures::sync::CMutex;
     ///
     /// #[tokio::main]
     /// async fn main() {
-    ///     let mutex = Mutex::new(1);
+    ///     let mutex = CMutex::new(1);
     ///
     ///     let n = mutex.into_inner().unwrap();
     ///     assert_eq!(n, 1);
@@ -400,11 +438,11 @@ impl<'a, T: ?Sized> ActionPermit<'a, T> {
     /// # Examples
     ///
     /// ```
-    /// use cancel_safe_futures::sync::Mutex;
+    /// use cancel_safe_futures::sync::CMutex;
     ///
     /// #[tokio::main]
     /// async fn main() {
-    ///     let mutex = Mutex::new(1);
+    ///     let mutex = CMutex::new(1);
     ///
     ///     let mut permit = mutex.lock().await.unwrap();
     ///     permit.perform(|n| *n = 2);
