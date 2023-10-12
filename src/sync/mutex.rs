@@ -194,7 +194,7 @@ impl<T: ?Sized> CMutex<T> {
         ActionPermit::new(guard, &self.poison)
     }
 
-    /// Blockingly locks this `Mutex`. When the lock has been acquired, function returns a
+    /// Blockingly locks this `Mutex`. When the lock has been acquired, the function returns a
     /// [`ActionPermit`].
     ///
     /// This method is intended for use cases where you need to use this mutex in asynchronous code
@@ -244,7 +244,7 @@ impl<T: ?Sized> CMutex<T> {
         ActionPermit::new(guard, &self.poison)
     }
 
-    /// Attempts to acquire the lock.
+    /// Attempts to acquire the lock, returning an [`ActionPermit`] if successful.
     ///
     /// # Errors
     ///
@@ -386,10 +386,16 @@ impl<'a, T: ?Sized> ActionPermit<'a, T> {
         })
     }
 
-    /// Runs a closure with access to the guarded data, consuming the permit in the process.
+    /// Runs a closure with access to the guarded data, consuming the permit in the process and
+    /// unlocking the mutex once the closure completes.
     ///
     /// This is a synchronous closure, which means that it cannot have await points within it. This
     /// guarantees cancel safety for this mutex.
+    ///
+    /// # Notes
+    ///
+    /// `action` is *not* run inside a synchronous context. This means that operations like
+    /// [`tokio::sync::mpsc::Sender::blocking_send`] will panic inside `action`.
     ///
     /// # Examples
     ///
