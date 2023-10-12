@@ -71,6 +71,10 @@ use tokio::sync::MutexGuard;
 ///
 ///   This is the problem that *cancel safety* solves.
 ///
+/// Both of these problems can also be solved in an ad-hoc manner (for example, by carefully
+/// checking for and restoring invariants at the start of each critical section). However, the goal
+/// of this mutex is to provide a systematic, if conservative, solution to these problems.
+///
 /// # Panic safety with poisoning
 ///
 /// Like [`std::sync::Mutex`] but *unlike* [`tokio::sync::Mutex`], this mutex implements a strategy
