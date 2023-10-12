@@ -96,6 +96,13 @@ use tokio::sync::MutexGuard;
 /// by returning [`ActionPermit`] instances which only provide access to the guarded data within a
 /// synchronous closure, as opposed to the RAII style that [`std::sync::MutexGuard`] and
 /// [`tokio::sync::MutexGuard`] use.
+///
+/// # Features
+///
+/// Basic mutex operations are supported. In the future, this will support:
+///
+/// - An `OwnedActionPermit`, similar to [`tokio::sync::OwnedMutexGuard`].
+/// - A `MappedActionPermit`, similar to [`tokio::sync::MappedMutexGuard`].
 pub struct Mutex<T: ?Sized> {
     poison: poison::Flag,
     inner: tokio::sync::Mutex<T>,
@@ -188,11 +195,6 @@ impl<T: ?Sized> Mutex<T> {
     /// # Panics
     ///
     /// This function panics if called within an asynchronous execution context.
-    ///
-    ///   - If you find yourself in an asynchronous execution context and needing to call some
-    ///     (synchronous) function which performs one of these `blocking_` operations, then consider
-    ///     wrapping that call inside [`spawn_blocking()`][tokio::runtime::Handle::spawn_blocking]
-    ///     (or [`block_in_place()`][tokio::task::block_in_place]).
     ///
     /// # Examples
     ///

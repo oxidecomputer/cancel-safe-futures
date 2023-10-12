@@ -1,3 +1,7 @@
+// This file is adapted from
+// https://github.com/rust-lang/rust/blob/475c71da0710fd1d40c046f9cee04b733b5b2b51/library/std/src/sync/poison.rs
+// and is used under the MIT and Apache 2.0 licenses.
+
 use core::sync::atomic::{AtomicBool, Ordering};
 use std::{
     sync::{LockResult, PoisonError},

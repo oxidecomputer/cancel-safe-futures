@@ -20,9 +20,7 @@ rustdoc-args = ["--cfg=doc_cfg"]
 [dependencies]
 futures-core = { version = "0.3.28", default-features = false }
 futures-sink = { version = "0.3.28", default-features = false }
-futures-util = { version = "0.3.28", default-features = false, features = [
-    "sink",
-] }
+futures-util = { version = "0.3.28", default-features = false, features = ["sink"] }
 tokio = { version = "1.28.2", features = ["sync"], optional = true }
 futures = { version = "0.3.28", optional = true }
 pin-project-lite = "0.2.9"
@@ -33,35 +31,15 @@ async-stream = "0.3.5"
 bytes = "1.4.0"
 debug-ignore = "1.0.5"
 tempfile = "3.6.0"
-tokio = { version = "1.28.2", features = [
-    "fs",
-    "io-util",
-    "macros",
-    "rt",
-    "rt-multi-thread",
-    "sync",
-    "time",
-] }
+tokio = { version = "1.28.2", features = ["fs", "io-util", "macros", "rt", "rt-multi-thread", "sync", "time"] }
 tokio-test = "0.4.0"
 
 [features]
 default = ["std", "macros"]
-std = [
-    "alloc",
-    "futures-core/std",
-    "futures-sink/std",
-    "futures-util/std",
-    "dep:tokio",
-]
+std = ["alloc", "futures-core/std", "futures-sink/std", "futures-util/std", "dep:tokio"]
 alloc = ["futures-core/alloc", "futures-sink/alloc", "futures-util/alloc"]
 parking_lot = ["tokio?/parking_lot"]
 macros = []
 
 # Internal-only feature, used for documentation and doctests. Not part of the public API.
-internal-docs = [
-    "dep:futures",
-    "dep:tokio",
-    "tokio?/io-util",
-    "tokio?/macros",
-    "tokio?/rt",
-]
+internal-docs = ["dep:futures", "dep:tokio", "tokio?/io-util", "tokio?/macros", "tokio?/rt"]
