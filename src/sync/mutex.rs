@@ -3,13 +3,13 @@ use std::{
     fmt,
     sync::{LockResult, TryLockError, TryLockResult},
 };
-use tokio::sync::MutexGuard;
+use tokio::sync::{MappedMutexGuard, MutexGuard};
 
 /// A cancel-safe and panic-safe variant of [`tokio::sync::Mutex`].
 ///
-/// This is a wrapper on top of a [`tokio::sync::Mutex`] which adds two further guarantees: *panic
-/// safety* and *cancel safety*. Both of these guarantees are implemented to ensure that mutex
-/// invariants aren't violated to the greatest extent possible.
+/// A `RobustMutex` is a wrapper on top of a [`tokio::sync::Mutex`] which adds two further
+/// guarantees: *panic safety* and *cancel safety*. Both of these guarantees are implemented to
+/// ensure that mutex invariants aren't violated to the greatest extent possible.
 ///
 /// # Motivation
 ///
@@ -112,10 +112,10 @@ use tokio::sync::MutexGuard;
 ///
 /// # Examples
 ///
-/// The above example, rewritten to use this mutex, would look like:
+/// The above example, rewritten to use a `RobustMutex`, would look like:
 ///
 /// ```
-/// use cancel_safe_futures::sync::CMutex;
+/// use cancel_safe_futures::sync::RobustMutex;
 /// use std::collections::HashMap;
 ///
 /// struct MyStruct {
@@ -137,7 +137,7 @@ use tokio::sync::MutexGuard;
 ///
 /// #[tokio::main]
 /// async fn main() {
-///     let mutex = CMutex::new(MyStruct::new());
+///     let mutex = RobustMutex::new(MyStruct::new());
 ///
 ///     let mut permit = mutex.lock().await.unwrap();  // note unwrap() here
 ///     permit.perform(|data| {
@@ -150,24 +150,32 @@ use tokio::sync::MutexGuard;
 ///
 /// # Features
 ///
-/// Basic mutex operations are supported. In the future, this will support:
+/// Basic mutex operations are supported, as well as [`ActionPermit::map`] to produce a
+/// [`MappedActionPermit`]. In the future, this will support:
 ///
 /// - An `OwnedActionPermit`, similar to [`tokio::sync::OwnedMutexGuard`].
-/// - A `MappedActionPermit`, similar to [`tokio::sync::MappedMutexGuard`].
-pub struct CMutex<T: ?Sized> {
+///
+/// # Why "robust"?
+///
+/// The name is derived from POSIX's [`pthread_mutexattr_getrobust` and
+/// `pthread_mutexattr_setrobust`](https://pubs.opengroup.org/onlinepubs/9699919799/functions/pthread_mutexattr_getrobust.html).
+/// These functions aim to achieve very similar goals to this mutex, except in slightly different
+/// circumstances (*thread* cancellations and terminations rather than *task* cancellations and
+/// panics).
+pub struct RobustMutex<T: ?Sized> {
     poison: poison::Flag,
     inner: tokio::sync::Mutex<T>,
 }
 
-impl<T: ?Sized> CMutex<T> {
+impl<T: ?Sized> RobustMutex<T> {
     /// Creates a new lock in an unlocked state ready for use.
     ///
     /// # Examples
     ///
     /// ```
-    /// use cancel_safe_futures::sync::CMutex;
+    /// use cancel_safe_futures::sync::RobustMutex;
     ///
-    /// let lock = CMutex::new(5);
+    /// let lock = RobustMutex::new(5);
     /// ```
     #[track_caller]
     pub fn new(value: T) -> Self
@@ -185,9 +193,9 @@ impl<T: ?Sized> CMutex<T> {
     /// # Examples
     ///
     /// ```
-    /// use cancel_safe_futures::sync::CMutex;
+    /// use cancel_safe_futures::sync::RobustMutex;
     ///
-    /// static LOCK: CMutex<i32> = CMutex::const_new(5);
+    /// static LOCK: RobustMutex<i32> = RobustMutex::const_new(5);
     /// ```
     #[cfg(all(feature = "parking_lot", not(all(loom, test)),))]
     #[cfg_attr(doc_cfg, doc(cfg(feature = "parking_lot")))]
@@ -217,11 +225,11 @@ impl<T: ?Sized> CMutex<T> {
     /// # Examples
     ///
     /// ```
-    /// use cancel_safe_futures::sync::CMutex;
+    /// use cancel_safe_futures::sync::RobustMutex;
     ///
     /// #[tokio::main]
     /// async fn main() {
-    ///     let mutex = CMutex::new(1);
+    ///     let mutex = RobustMutex::new(1);
     ///
     ///     let mut permit = mutex.lock().await.unwrap();
     ///     permit.perform(|n| *n = 2);
@@ -250,12 +258,12 @@ impl<T: ?Sized> CMutex<T> {
     /// # Examples
     ///
     /// ```
-    /// use cancel_safe_futures::sync::CMutex;
+    /// use cancel_safe_futures::sync::RobustMutex;
     /// use std::sync::Arc;
     ///
     /// #[tokio::main]
     /// async fn main() {
-    ///     let mutex = Arc::new(CMutex::new(1));
+    ///     let mutex = Arc::new(RobustMutex::new(1));
     ///     let permit = mutex.lock().await.unwrap();
     ///
     ///     let mutex1 = Arc::clone(&mutex);
@@ -293,11 +301,11 @@ impl<T: ?Sized> CMutex<T> {
     /// # Examples
     ///
     /// ```
-    /// use cancel_safe_futures::sync::CMutex;
+    /// use cancel_safe_futures::sync::RobustMutex;
     ///
     /// #[tokio::main]
     /// async fn main() {
-    ///     let mutex = CMutex::new(1);
+    ///     let mutex = RobustMutex::new(1);
     ///
     ///     let permit = mutex.try_lock().unwrap();
     ///     permit.perform(|n| {
@@ -321,14 +329,14 @@ impl<T: ?Sized> CMutex<T> {
     /// # Examples
     ///
     /// ```
-    /// use cancel_safe_futures::sync::CMutex;
+    /// use cancel_safe_futures::sync::RobustMutex;
     /// use std::sync::Arc;
     /// use std::thread;
     ///
     /// # #[tokio::main]
     /// # async fn main() {
     ///
-    /// let mutex = Arc::new(CMutex::new(0));
+    /// let mutex = Arc::new(RobustMutex::new(0));
     /// let c_mutex = Arc::clone(&mutex);
     ///
     /// let _ = tokio::task::spawn(async move {
@@ -350,9 +358,9 @@ impl<T: ?Sized> CMutex<T> {
     /// # Examples
     ///
     /// ```
-    /// use cancel_safe_futures::sync::CMutex;
+    /// use cancel_safe_futures::sync::RobustMutex;
     ///
-    /// let mut mutex = CMutex::new(1);
+    /// let mut mutex = RobustMutex::new(1);
     ///
     /// let n = mutex.get_mut();
     /// *n = 2;
@@ -371,11 +379,11 @@ impl<T: ?Sized> CMutex<T> {
     /// # Examples
     ///
     /// ```
-    /// use cancel_safe_futures::sync::CMutex;
+    /// use cancel_safe_futures::sync::RobustMutex;
     ///
     /// #[tokio::main]
     /// async fn main() {
-    ///     let mutex = CMutex::new(1);
+    ///     let mutex = RobustMutex::new(1);
     ///
     ///     let n = mutex.into_inner().unwrap();
     ///     assert_eq!(n, 1);
@@ -390,9 +398,9 @@ impl<T: ?Sized> CMutex<T> {
     }
 }
 
-impl<T: ?Sized + fmt::Debug> fmt::Debug for CMutex<T> {
+impl<T: ?Sized + fmt::Debug> fmt::Debug for RobustMutex<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let mut d = f.debug_struct("Mutex");
+        let mut d = f.debug_struct("RobustMutex");
         match self.try_lock() {
             Ok(inner) => d.field("data", &inner.guard),
             Err(_) => d.field("data", &format_args!("<locked>")),
@@ -402,12 +410,13 @@ impl<T: ?Sized + fmt::Debug> fmt::Debug for CMutex<T> {
     }
 }
 
-/// A token that grants the ability to run one closure against the data guarded by a [`CMutex`].
+/// A token that grants the ability to run one closure against the data guarded by a [`RobustMutex`].
 ///
-/// This is produced by the `lock` family of operations on [`CMutex`] and is intended to provide
+/// This is produced by the `lock` family of operations on [`RobustMutex`] and is intended to provide
 /// robust cancel safety.
 ///
-/// For more information, see the documentation for [`CMutex`].
+/// For more information, see the documentation for [`RobustMutex`].
+#[clippy::has_significant_drop]
 pub struct ActionPermit<'a, T: ?Sized> {
     poison: &'a poison::Flag,
     poison_guard: poison::Guard,
@@ -416,7 +425,7 @@ pub struct ActionPermit<'a, T: ?Sized> {
 
 impl<'a, T: ?Sized> ActionPermit<'a, T> {
     /// Invariant: the mutex must be locked when this is called.
-    pub(crate) fn new(guard: MutexGuard<'a, T>, poison: &'a poison::Flag) -> LockResult<Self> {
+    fn new(guard: MutexGuard<'a, T>, poison: &'a poison::Flag) -> LockResult<Self> {
         poison::map_result(poison.guard(), |poison_guard| Self {
             guard,
             poison,
@@ -435,23 +444,141 @@ impl<'a, T: ?Sized> ActionPermit<'a, T> {
     /// `action` is *not* run inside a synchronous context. This means that operations like
     /// [`tokio::sync::mpsc::Sender::blocking_send`] will panic inside `action`.
     ///
+    /// If `action` panics, the mutex is marked poisoned.
+    ///
     /// # Examples
     ///
     /// ```
-    /// use cancel_safe_futures::sync::CMutex;
+    /// use cancel_safe_futures::sync::RobustMutex;
     ///
     /// #[tokio::main]
     /// async fn main() {
-    ///     let mutex = CMutex::new(1);
+    ///     let mutex = RobustMutex::new(1);
     ///
-    ///     let mut permit = mutex.lock().await.unwrap();
+    ///     let permit = mutex.lock().await.unwrap();
     ///     permit.perform(|n| *n = 2);
     /// }
     /// ```
-    pub fn perform<R>(mut self, action: impl FnOnce(&mut T) -> R) -> R {
+    pub fn perform<R, F>(mut self, action: F) -> R
+    where
+        F: FnOnce(&mut T) -> R,
+    {
         action(&mut *self.guard)
 
         // Note: we're relying on the Drop impl for `self` to unlock the mutex.
+    }
+
+    /// Makes a new [`MappedActionPermit`] for a component of the locked data.
+    ///
+    /// This operation cannot fail as the [`ActionPermit`] passed in already locked the mutex.
+    ///
+    /// # Notes
+    ///
+    /// If `f` panics, the mutex is marked poisoned.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use cancel_safe_futures::sync::RobustMutex;
+    ///
+    /// #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    /// struct Foo(u32);
+    ///
+    /// # #[tokio::main]
+    /// # async fn main() {
+    /// let foo = RobustMutex::new(Foo(1));
+    ///
+    /// {
+    ///     let mapped = foo.lock().await.unwrap().map(|f| &mut f.0);
+    ///     mapped.perform(|n| *n = 2);
+    /// }
+    ///
+    /// let permit = foo.lock().await.unwrap();
+    /// permit.perform(|f| assert_eq!(*f, Foo(2)));
+    /// # }
+    /// ```
+    #[inline]
+    pub fn map<U, F>(self, f: F) -> MappedActionPermit<'a, U>
+    where
+        F: FnOnce(&mut T) -> &mut U,
+    {
+        // SAFETY: This duplicates guard and then forgets the original. In the end, we have not
+        // duplicated or forgotten any values.
+        let guard = MutexGuard::map(unsafe { std::ptr::read(&self.guard) }, f);
+        let inner = self.skip_drop();
+
+        MappedActionPermit {
+            poison: inner.poison,
+            poison_guard: inner.poison_guard,
+            guard,
+        }
+    }
+
+    /// Attempts to make a new [`MappedActionPermit`] for a component of the locked data. The
+    /// original guard is returned if the closure returns `None`.
+    ///
+    /// This operation cannot fail as the [`ActionPermit`] passed in already locked the mutex.
+    ///
+    /// # Notes
+    ///
+    /// If `f` panics, the mutex is marked poisoned.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use cancel_safe_futures::sync::RobustMutex;
+    ///
+    /// #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    /// struct Foo(u32);
+    ///
+    /// #[tokio::main]
+    /// async fn main() {
+    ///     let foo = RobustMutex::new(Foo(1));
+    ///
+    ///     {
+    ///         let mapped = foo.lock().await.unwrap().try_map(|f| Some(&mut f.0))
+    ///              .expect("should not fail");
+    ///         mapped.perform(|n| *n = 2);
+    ///     }
+    ///
+    ///     let permit = foo.lock().await.unwrap();
+    ///     permit.perform(|f| assert_eq!(*f, Foo(2)));
+    /// }
+    #[inline]
+    pub fn try_map<U, F>(self, f: F) -> Result<MappedActionPermit<'a, U>, Self>
+    where
+        F: FnOnce(&mut T) -> Option<&mut U>,
+    {
+        // SAFETY: This duplicates guard and then forgets the original. In the end, we have not
+        // duplicated or forgotten any values.
+        let guard = MutexGuard::try_map(unsafe { std::ptr::read(&self.guard) }, f);
+        let inner = self.skip_drop();
+
+        match guard {
+            Ok(guard) => Ok(MappedActionPermit {
+                poison: inner.poison,
+                poison_guard: inner.poison_guard,
+                guard,
+            }),
+            Err(guard) => Err(ActionPermit {
+                poison: inner.poison,
+                poison_guard: inner.poison_guard,
+                // This is the original guard.
+                guard,
+            }),
+        }
+    }
+
+    fn skip_drop(self) -> ActionPermitInner<'a> {
+        let me = std::mem::ManuallyDrop::new(self);
+        // SAFETY: This duplicates poison_guard and then forgets the original. In the end, we have
+        // not duplicated or forgotten any values.
+        unsafe {
+            ActionPermitInner {
+                poison: me.poison,
+                poison_guard: std::ptr::read(&me.poison_guard),
+            }
+        }
     }
 }
 
@@ -472,4 +599,162 @@ impl<T: ?Sized + fmt::Display> fmt::Display for ActionPermit<'_, T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt::Display::fmt(&*self.guard, f)
     }
+}
+
+/// A handle to a held [`RobustMutex`] that has had a function applied to it via [`ActionPermit::map`].
+///
+/// This can be used to hold a subfield of the protected data.
+#[clippy::has_significant_drop]
+pub struct MappedActionPermit<'a, T: ?Sized> {
+    poison: &'a poison::Flag,
+    poison_guard: poison::Guard,
+    guard: MappedMutexGuard<'a, T>,
+}
+
+impl<'a, T: ?Sized> MappedActionPermit<'a, T> {
+    /// Runs a closure with access to the guarded data, consuming the permit in the process and
+    /// unlocking the mutex once the closure completes.
+    ///
+    /// This is a synchronous closure, which means that it cannot have await points within it. This
+    /// guarantees cancel safety for this mutex.
+    ///
+    /// # Notes
+    ///
+    /// `action` is *not* run inside a synchronous context. This means that operations like
+    /// [`tokio::sync::mpsc::Sender::blocking_send`] will panic inside `action`.
+    ///
+    /// If `action` panics, the mutex is marked poisoned.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use cancel_safe_futures::sync::RobustMutex;
+    ///
+    /// #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    /// struct Foo(u32);
+    ///
+    /// #[tokio::main]
+    /// async fn main() {
+    ///     let mutex = RobustMutex::new(Foo(1));
+    ///
+    ///     let permit = mutex.lock().await.unwrap();
+    ///     let mapped = permit.map(|foo| &mut foo.0);
+    ///     mapped.perform(|n| *n = 2);
+    ///
+    ///     let permit2 = mutex.lock().await.unwrap();
+    ///     permit2.perform(|foo| assert_eq!(*foo, Foo(2)));
+    /// }
+    /// ```
+    pub fn perform<R, F>(mut self, action: F) -> R
+    where
+        F: FnOnce(&mut T) -> R,
+    {
+        action(&mut *self.guard)
+
+        // Note: we're relying on the Drop impl for `self` to unlock the mutex.
+    }
+
+    /// Makes a new [`MappedActionPermit`] for a component of the locked data.
+    ///
+    /// This operation cannot fail as the [`MappedActionPermit`] passed in already locked the mutex.
+    ///
+    /// # Notes
+    ///
+    /// If `f` panics, the mutex is marked poisoned.
+    #[inline]
+    pub fn map<U, F>(self, f: F) -> MappedActionPermit<'a, U>
+    where
+        F: FnOnce(&mut T) -> &mut U,
+    {
+        // SAFETY: This duplicates guard and then forgets the original. In the end, we have not
+        // duplicated or forgotten any values.
+        let guard = MappedMutexGuard::map(unsafe { std::ptr::read(&self.guard) }, f);
+        let inner = self.skip_drop();
+
+        MappedActionPermit {
+            poison: inner.poison,
+            poison_guard: inner.poison_guard,
+            guard,
+        }
+    }
+
+    /// Attempts to make a new [`MappedActionPermit`] for a component of the locked data. The
+    /// original guard is returned if the closure returns `None`.
+    ///
+    /// This operation cannot fail as the [`MappedActionPermit`] passed in already locked the mutex.
+    ///
+    /// # Notes
+    ///
+    /// If `f` panics, the mutex is marked poisoned.
+    #[inline]
+    pub fn try_map<U, F>(self, f: F) -> Result<MappedActionPermit<'a, U>, Self>
+    where
+        F: FnOnce(&mut T) -> Option<&mut U>,
+    {
+        // SAFETY: This duplicates guard and then forgets the original. In the end, we have not
+        // duplicated or forgotten any values.
+        let guard = MappedMutexGuard::try_map(unsafe { std::ptr::read(&self.guard) }, f);
+        let inner = self.skip_drop();
+
+        match guard {
+            Ok(guard) => Ok(MappedActionPermit {
+                poison: inner.poison,
+                poison_guard: inner.poison_guard,
+                guard,
+            }),
+            Err(guard) => Err(MappedActionPermit {
+                poison: inner.poison,
+                poison_guard: inner.poison_guard,
+                // This is the original guard.
+                guard,
+            }),
+        }
+    }
+
+    fn skip_drop(self) -> MappedActionPermitInner<'a> {
+        let me = std::mem::ManuallyDrop::new(self);
+        // SAFETY: This duplicates poison_guard and then forgets the original. In the end,
+        // we have not duplicated or forgotten any values.
+        unsafe {
+            MappedActionPermitInner {
+                poison: me.poison,
+                poison_guard: std::ptr::read(&me.poison_guard),
+            }
+        }
+    }
+}
+
+impl<T: ?Sized> Drop for MappedActionPermit<'_, T> {
+    #[inline]
+    fn drop(&mut self) {
+        self.poison.done(&self.poison_guard);
+    }
+}
+
+impl<T: ?Sized + fmt::Debug> fmt::Debug for MappedActionPermit<'_, T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Debug::fmt(&*self.guard, f)
+    }
+}
+
+impl<T: ?Sized + fmt::Display> fmt::Display for MappedActionPermit<'_, T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Display::fmt(&*self.guard, f)
+    }
+}
+
+/// A helper type used when taking apart an `ActionPermit` without running its
+/// Drop implementation.
+#[allow(dead_code)] // Unused fields are still used in Drop.
+struct ActionPermitInner<'a> {
+    poison: &'a poison::Flag,
+    poison_guard: poison::Guard,
+}
+
+/// A helper type used when taking apart a `MappedActionPermit` without running its
+/// Drop implementation.
+/// #[allow(dead_code)] // Unused fields are still used in Drop.
+struct MappedActionPermitInner<'a> {
+    poison: &'a poison::Flag,
+    poison_guard: poison::Guard,
 }

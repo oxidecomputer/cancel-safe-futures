@@ -85,8 +85,8 @@
 //! The [`tokio::sync::Mutex`] shipped with Tokio has resulted in many bugs in practice,
 //! particularly around cancellations.
 //!
-//! This crate provides an alternative mutex API, called [`CMutex`](sync::CMutex), that does not
-//! have those pitfalls. For more, see the documentation for [`CMutex`](sync::CMutex).
+//! This crate provides an alternative mutex API, called [`RobustMutex`](sync::RobustMutex), that does not
+//! have those pitfalls. For more, see the documentation for [`RobustMutex`](sync::RobustMutex).
 //!
 //! ## 4. Cooperative cancellation
 //!

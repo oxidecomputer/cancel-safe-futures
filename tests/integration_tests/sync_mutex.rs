@@ -1,6 +1,6 @@
 #![cfg(feature = "std")]
 
-use cancel_safe_futures::sync::CMutex;
+use cancel_safe_futures::sync::RobustMutex;
 use std::{
     sync::{Arc, TryLockError},
     time::Duration,
@@ -10,7 +10,7 @@ use tokio_test::{assert_pending, assert_ready, task::spawn};
 
 #[test]
 fn straight_execution() {
-    let l = CMutex::new(100);
+    let l = RobustMutex::new(100);
 
     {
         let mut t = spawn(l.lock());
@@ -39,7 +39,7 @@ fn straight_execution() {
 
 #[test]
 fn readiness() {
-    let l1 = Arc::new(CMutex::new(100));
+    let l1 = Arc::new(RobustMutex::new(100));
     let l2 = Arc::clone(&l1);
     let mut t1 = spawn(l1.lock());
     let mut t2 = spawn(l2.lock());
@@ -61,7 +61,7 @@ fn readiness() {
 /// violations don't apply.
 #[tokio::test]
 async fn aborted_future_1() {
-    let m1: Arc<CMutex<usize>> = Arc::new(CMutex::new(0));
+    let m1: Arc<RobustMutex<usize>> = Arc::new(RobustMutex::new(0));
     {
         let m2 = m1.clone();
         // Try to lock mutex in a future that is aborted prematurely
@@ -87,7 +87,7 @@ async fn aborted_future_1() {
 /// lock.
 #[tokio::test]
 async fn aborted_future_2() {
-    let m1: Arc<CMutex<usize>> = Arc::new(CMutex::new(0));
+    let m1: Arc<RobustMutex<usize>> = Arc::new(RobustMutex::new(0));
     {
         // Lock mutex
         let _lock = m1.lock().await;
@@ -112,7 +112,7 @@ async fn aborted_future_2() {
 /// Ensure a mutex is poisoned if a task panics in the middle of perform.
 #[tokio::test]
 async fn panicking_task() {
-    let m1: Arc<CMutex<usize>> = Arc::new(CMutex::new(0));
+    let m1: Arc<RobustMutex<usize>> = Arc::new(RobustMutex::new(0));
     {
         let m2 = m1.clone();
         tokio::task::spawn(async move {
@@ -132,9 +132,133 @@ async fn panicking_task() {
     assert!(matches!(error, TryLockError::Poisoned(_)));
 }
 
+/// Ensure a mutex is poisoned if a task panics in the middle of ActionPermit::map.
+#[tokio::test]
+async fn panicking_task_map() {
+    let m1: Arc<RobustMutex<usize>> = Arc::new(RobustMutex::new(0));
+    {
+        let m2 = m1.clone();
+        tokio::task::spawn(async move {
+            let permit = m2.lock().await.unwrap();
+            permit.map::<(), _>(|_| {
+                panic!("oh no!");
+            });
+        })
+        .await
+        .unwrap_err();
+    }
+    // This returns a PoisonError.
+    m1.lock().await.unwrap_err();
+
+    // This returns a TryLockError of the Poisoned kind.
+    let error = m1.try_lock().unwrap_err();
+    assert!(matches!(error, TryLockError::Poisoned(_)));
+}
+
+/// Ensure a mutex is poisoned if a task panics in the middle of ActionPermit::try_map.
+#[tokio::test]
+async fn panicking_task_try_map() {
+    let m1: Arc<RobustMutex<usize>> = Arc::new(RobustMutex::new(0));
+    {
+        let m2 = m1.clone();
+        tokio::task::spawn(async move {
+            let permit = m2.lock().await.unwrap();
+            _ = permit.try_map::<(), _>(|_| {
+                panic!("oh no!");
+            });
+        })
+        .await
+        .unwrap_err();
+    }
+    // This returns a PoisonError.
+    m1.lock().await.unwrap_err();
+
+    // This returns a TryLockError of the Poisoned kind.
+    let error = m1.try_lock().unwrap_err();
+    assert!(matches!(error, TryLockError::Poisoned(_)));
+}
+
+/// Ensure a mutex is poisoned if a task panics in the middle of MappedActionPermit::map.
+#[tokio::test]
+async fn panicking_task_mapped_map() {
+    #[derive(Debug)]
+    struct Foo(u32);
+
+    let m1: Arc<RobustMutex<Foo>> = Arc::new(RobustMutex::new(Foo(0)));
+    {
+        let m2 = m1.clone();
+        tokio::task::spawn(async move {
+            let permit = m2.lock().await.unwrap().map(|x| &mut x.0);
+            permit.map::<(), _>(|_| {
+                panic!("oh no!");
+            });
+        })
+        .await
+        .unwrap_err();
+    }
+    // This returns a PoisonError.
+    m1.lock().await.unwrap_err();
+
+    // This returns a TryLockError of the Poisoned kind.
+    let error = m1.try_lock().unwrap_err();
+    assert!(matches!(error, TryLockError::Poisoned(_)));
+}
+
+/// Ensure a mutex is poisoned if a task panics in the middle of MappedActionPermit::try_map.
+#[tokio::test]
+async fn panicking_task_mapped_try_map() {
+    #[derive(Debug)]
+    struct Foo(u32);
+
+    let m1: Arc<RobustMutex<Foo>> = Arc::new(RobustMutex::new(Foo(0)));
+    {
+        let m2 = m1.clone();
+        tokio::task::spawn(async move {
+            let permit = m2.lock().await.unwrap().map(|x| &mut x.0);
+            _ = permit.try_map::<(), _>(|_| {
+                panic!("oh no!");
+            });
+        })
+        .await
+        .unwrap_err();
+    }
+    // This returns a PoisonError.
+    m1.lock().await.unwrap_err();
+
+    // This returns a TryLockError of the Poisoned kind.
+    let error = m1.try_lock().unwrap_err();
+    assert!(matches!(error, TryLockError::Poisoned(_)));
+}
+
+/// Ensure a mutex is poisoned if a task panics in the middle of `MappedActionPermit::perform`.
+#[tokio::test]
+async fn panicking_task_mapped_action_permit_perform() {
+    #[derive(Debug)]
+    struct Foo(u32);
+
+    let m1: Arc<RobustMutex<Foo>> = Arc::new(RobustMutex::new(Foo(0)));
+    {
+        let m2 = m1.clone();
+        tokio::task::spawn(async move {
+            let permit = m2.lock().await.unwrap().map(|x| &mut x.0);
+            permit.perform(|_| {
+                panic!("oh no!");
+            });
+        })
+        .await
+        .unwrap_err();
+    }
+    // This returns a PoisonError.
+    m1.lock().await.unwrap_err();
+
+    // This returns a TryLockError of the Poisoned kind.
+    let error = m1.try_lock().unwrap_err();
+    assert!(matches!(error, TryLockError::Poisoned(_)));
+}
+
 #[test]
 fn try_lock() {
-    let m: CMutex<usize> = CMutex::new(0);
+    let m: RobustMutex<usize> = RobustMutex::new(0);
     {
         let g1 = m.try_lock();
         assert!(g1.is_ok());
@@ -148,7 +272,7 @@ fn try_lock() {
 #[tokio::test]
 async fn mutex_guard_debug_display() {
     let s = "internal";
-    let m = CMutex::new(s.to_string());
+    let m = RobustMutex::new(s.to_string());
     let permit = m.lock().await.unwrap();
     assert_eq!(format!("{:?}", s), format!("{:?}", permit));
     assert_eq!(s, format!("{}", permit));
@@ -157,20 +281,20 @@ async fn mutex_guard_debug_display() {
 #[tokio::test]
 async fn mutex_debug_display() {
     let s = "data";
-    let m = Arc::new(CMutex::new(s.to_string()));
+    let m = Arc::new(RobustMutex::new(s.to_string()));
     assert_eq!(
         format!("{:?}", m),
-        r#"Mutex { data: "data", poisoned: false }"#
+        r#"RobustMutex { data: "data", poisoned: false }"#
     );
     let _permit = m.lock().await.unwrap();
     assert_eq!(
         format!("{:?}", m),
-        r#"Mutex { data: <locked>, poisoned: false }"#
+        r#"RobustMutex { data: <locked>, poisoned: false }"#
     );
     std::mem::drop(_permit);
     assert_eq!(
         format!("{:?}", m),
-        r#"Mutex { data: "data", poisoned: false }"#
+        r#"RobustMutex { data: "data", poisoned: false }"#
     );
 
     // Panic in the middle of perform.
@@ -186,6 +310,6 @@ async fn mutex_debug_display() {
 
     assert_eq!(
         format!("{:?}", m),
-        r#"Mutex { data: <locked>, poisoned: true }"#
+        r#"RobustMutex { data: <locked>, poisoned: true }"#
     );
 }

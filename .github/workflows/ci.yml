@@ -26,7 +26,7 @@ jobs:
         run: cargo xfmt --check
       - name: Run rustdoc
         env:
-          RUSTC_BOOTSTRAP: 1  # for feature(doc_cfg)
+          RUSTC_BOOTSTRAP: 1 # for feature(doc_cfg)
           RUSTDOCFLAGS: -Dwarnings --cfg doc_cfg
         run: cargo doc --all-features --workspace
       - name: Check for differences
@@ -37,8 +37,8 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ ubuntu-latest ]
-        rust-version: [ "1.64", stable ]
+        os: [ubuntu-latest]
+        rust-version: ["1.64", stable]
       fail-fast: false
     env:
       RUSTFLAGS: -D warnings
@@ -58,6 +58,42 @@ jobs:
         if: matrix.rust-version == 'stable'
         run: ./scripts/commands.sh doctest
 
+  miri:
+    name: Miri
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        rust-version: [nightly]
+      fail-fast: false
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ matrix.rust-version }}
+          components: miri
+      - uses: Swatinem/rust-cache@v2
+      - uses: taiki-e/install-action@nextest
+      - name: Run miri
+        run: ./scripts/commands.sh miri
+
+  coverage:
+    name: Collect coverage
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        rust-version: [stable]
+      fail-fast: false
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ matrix.rust-version }}
+          components: llvm-tools-preview
+      - uses: Swatinem/rust-cache@v2
+      - uses: taiki-e/install-action@nextest
+      - name: Run coverage
+        run: ./scripts/commands.sh coverage
+
   no-std:
     name: Build no_std for ${{ matrix.target }}
     runs-on: ubuntu-latest
@@ -68,7 +104,7 @@ jobs:
         target:
           - thumbv7m-none-eabi
           - thumbv6m-none-eabi
-        rust-version: [ stable ]
+        rust-version: [stable]
       fail-fast: false
     steps:
       - uses: actions/checkout@v4
@@ -77,5 +113,5 @@ jobs:
           toolchain: ${{ matrix.rust-version }}
           targets: ${{ matrix.target }}
       - uses: Swatinem/rust-cache@v2
-      - uses: taiki-e/install-action@cargo-hack    
+      - uses: taiki-e/install-action@cargo-hack
       - run: ./scripts/commands.sh build-no-std --target ${{ matrix.target }}
