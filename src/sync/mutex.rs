@@ -410,12 +410,67 @@ impl<T: ?Sized + fmt::Debug> fmt::Debug for RobustMutex<T> {
     }
 }
 
-/// A token that grants the ability to run one closure against the data guarded by a [`RobustMutex`].
+/// A token that grants the ability to run one closure against the data guarded by a
+/// [`RobustMutex`].
 ///
-/// This is produced by the `lock` family of operations on [`RobustMutex`] and is intended to provide
-/// robust cancel safety.
+/// This is produced by the `lock` family of operations on [`RobustMutex`] and is intended to
+/// provide robust cancel safety.
 ///
 /// For more information, see the documentation for [`RobustMutex`].
+///
+/// # Why is this its own type?
+///
+/// A question some users might have is: why not combine `lock` and `perform`? Why have this type
+/// that sits in the middle?
+///
+/// The answer is that this structure is necessary to provide cancel safety. Consider what happens
+/// with a hypothetical `lock_and_perform` function. Let's say we use it in a `select!` statement
+/// thus:
+///
+/// ```rust
+/// use std::time::Duration;
+/// use tokio::time::sleep;
+///
+/// # /*
+/// struct MyMutex<T> { /* ... */ }
+/// # */
+/// # struct MyMutex<T> { _marker: std::marker::PhantomData<T> }
+///
+/// impl<T> MyMutex<T> {
+///     async fn lock_and_perform<U>(self, action: impl FnOnce(&mut T) -> U) -> LockResult<U> {
+///         /* ... */
+/// #       todo!()
+///     }
+/// }
+///
+/// // Represents some kind of type that is unique and can't be cloned.
+/// struct NonCloneableType(u32);
+///
+/// #[tokio::main]
+/// async fn main() {
+///     let mutex = MyMutex::new(1);
+///     let data = NonCloneableType(2);
+///     let sleep = sleep(Duration::from_secs(1));
+///
+///     let fut = mutex.lock_and_perform(|n| {
+///         *n = data.0;
+///     });
+///
+///     tokio::select! {
+///         _ = fut => {
+///             /* ... */
+///         }
+///         _ = sleep => {
+///             /* ... */
+///         }
+///     }
+/// }
+/// ```
+///
+/// Then, if `sleep` fires before `fut`, the non-cloneable type is dropped without being used. This
+/// leads to cancel unsafety, in a way very similar to the cancel unsafety that
+/// [`futures::SinkExt::send`] has, and that this crate's
+/// [`SinkExt::reserve`](crate::SinkExt::reserve) solves.
 #[clippy::has_significant_drop]
 pub struct ActionPermit<'a, T: ?Sized> {
     poison: &'a poison::Flag,

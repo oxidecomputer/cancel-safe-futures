@@ -53,6 +53,13 @@ run_doctest() {
     cargo test --all-features --doc
 }
 
+run_coverage() {
+    echo_err "Running coverage (requires nightly)"
+    run_cargo_std llvm-cov nextest --all-targets --lcov --output-path lcov.info
+    run_cargo_std llvm-cov test --doc --lcov --output-path lcov-doctest.info
+    echo_err "Wrote output to lcov.info and lcov-doctest.info"
+}
+
 run_build_no_std() {
     local build_target="$1"
 
@@ -82,10 +89,6 @@ run_cargo_hack() {
     $CARGO hack --feature-powerset --exclude-features "$joined_excluded_features" "$@"
 }
 
-run_cargo_std() {
-    $CARGO "$@" --features std
-}
-
 run_cargo_hack_no_std() {
     joined_excluded_features=$(printf ",%s" "${EXCLUDED_FEATURES_NO_STD[@]}")
     # Strip leading comma
@@ -94,8 +97,12 @@ run_cargo_hack_no_std() {
     $CARGO hack --feature-powerset --exclude-features "$joined_excluded_features" "$@"
 }
 
+run_cargo_std() {
+    $CARGO "$@" --features std
+}
+
 if [[ $# -eq 0 ]]; then
-    echo_err "Usage: commands.sh [b|build|t|test|nt|nextest|miri|coverage|dt|doctest|build-no-std]"
+    echo_err "Usage: commands.sh [b|build|t|test|nt|nextest|dt|doctest|miri|coverage|build-no-std]"
     exit 1
 fi
 
@@ -108,6 +115,7 @@ while [[ "$#" -gt 0 ]]; do
         miri) run_miri ;;
         coverage) run_coverage ;;
         dt|doctest) run_doctest ;;
+        coverage) run_coverage ;;
         build-no-std)
             shift;
             case $1 in
@@ -121,7 +129,7 @@ while [[ "$#" -gt 0 ]]; do
             fi
 
             run_build_no_std "$build_target" ;;
-        -h|--help) echo "Usage: commands.sh [b|build|t|test|nt|nextest|miri|coverage|dt|doctest|build-no-std]"; exit 0 ;;
+        -h|--help) echo "Usage: commands.sh [b|build|t|test|nt|nextest|dt|doctest|miri|coverage|build-no-std]"; exit 0 ;;
         *) echo "Unknown parameter passed: $1"; exit 1 ;;
     esac
     shift
