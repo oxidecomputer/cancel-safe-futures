@@ -427,7 +427,8 @@ impl<T: ?Sized + fmt::Debug> fmt::Debug for RobustMutex<T> {
 /// with a hypothetical `lock_and_perform` function. Let's say we use it in a `select!` statement
 /// thus:
 ///
-/// ```rust
+/// ```rust,no_run
+/// use std::sync::LockResult;
 /// use std::time::Duration;
 /// use tokio::time::sleep;
 ///
@@ -437,6 +438,10 @@ impl<T: ?Sized + fmt::Debug> fmt::Debug for RobustMutex<T> {
 /// # struct MyMutex<T> { _marker: std::marker::PhantomData<T> }
 ///
 /// impl<T> MyMutex<T> {
+///     fn new(data: T) -> Self {
+///         /* ... */
+///         todo!();
+///     }
 ///     async fn lock_and_perform<U>(self, action: impl FnOnce(&mut T) -> U) -> LockResult<U> {
 ///         /* ... */
 /// #       todo!()
@@ -468,9 +473,10 @@ impl<T: ?Sized + fmt::Debug> fmt::Debug for RobustMutex<T> {
 /// ```
 ///
 /// Then, if `sleep` fires before `fut`, the non-cloneable type is dropped without being used. This
-/// leads to cancel unsafety, in a way very similar to the cancel unsafety that
-/// [`futures::SinkExt::send`] has, and that this crate's
-/// [`SinkExt::reserve`](crate::SinkExt::reserve) solves.
+/// leads to cancel unsafety.
+///
+/// This is very similar to the cancel unsafety that [`futures::SinkExt::send`] has, and that this
+/// crate's [`SinkExt::reserve`](crate::SinkExt::reserve) solves.
 #[clippy::has_significant_drop]
 pub struct ActionPermit<'a, T: ?Sized> {
     poison: &'a poison::Flag,
