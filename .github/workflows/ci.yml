@@ -91,6 +91,7 @@ jobs:
           components: llvm-tools-preview
       - uses: Swatinem/rust-cache@v2
       - uses: taiki-e/install-action@nextest
+      - uses: taiki-e/install-action@cargo-llvm-cov
       - name: Run coverage
         run: ./scripts/commands.sh coverage
 
