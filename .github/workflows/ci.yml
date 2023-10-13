@@ -26,7 +26,7 @@ jobs:
         run: cargo xfmt --check
       - name: Run rustdoc
         env:
-          RUSTC_BOOTSTRAP: 1  # for feature(doc_cfg)
+          RUSTC_BOOTSTRAP: 1 # for feature(doc_cfg)
           RUSTDOCFLAGS: -Dwarnings --cfg doc_cfg
         run: cargo doc --all-features --workspace
       - name: Check for differences
@@ -37,8 +37,8 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ ubuntu-latest ]
-        rust-version: [ "1.64", stable ]
+        os: [ubuntu-latest]
+        rust-version: ["1.64", stable]
       fail-fast: false
     env:
       RUSTFLAGS: -D warnings
@@ -68,7 +68,7 @@ jobs:
         target:
           - thumbv7m-none-eabi
           - thumbv6m-none-eabi
-        rust-version: [ stable ]
+        rust-version: [stable]
       fail-fast: false
     steps:
       - uses: actions/checkout@v4
@@ -77,5 +77,5 @@ jobs:
           toolchain: ${{ matrix.rust-version }}
           targets: ${{ matrix.target }}
       - uses: Swatinem/rust-cache@v2
-      - uses: taiki-e/install-action@cargo-hack    
+      - uses: taiki-e/install-action@cargo-hack
       - run: ./scripts/commands.sh build-no-std --target ${{ matrix.target }}
