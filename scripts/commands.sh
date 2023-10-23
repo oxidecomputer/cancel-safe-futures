@@ -47,8 +47,8 @@ run_doctest() {
 
 run_coverage() {
     echo_err "Running coverage (requires nightly)"
-    run_cargo_std llvm-cov nextest --all-targets --lcov --output-path lcov.info
-    run_cargo_std llvm-cov test --doc --lcov --output-path lcov-doctest.info
+    run_cargo_std llvm-cov nextest --all-features --all-targets --lcov --output-path lcov.info
+    run_cargo_std llvm-cov test --all-features --doc --lcov --output-path lcov-doctest.info
     echo_err "Wrote output to lcov.info and lcov-doctest.info"
 }
 
