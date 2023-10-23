@@ -109,17 +109,41 @@ async fn aborted_future_2() {
 
 #[tokio::test]
 async fn cancelled_perform_async() {
-    // Non-cloneable data to test moves.
     #[derive(Debug)]
     struct Foo(u32);
 
     let m1: Arc<RobustMutex<Foo>> = Arc::new(RobustMutex::new(Foo(0)));
     {
         let permit = m1.lock().await.unwrap();
-        cancel_perform_async(permit).await;
+        cancel_perform_async_boxed(permit).await;
     }
 
     // The mutex should be poisoned due to a cancellation.
+    assert!(m1.is_poisoned());
+    assert!(m1.is_cancel_poisoned());
+    assert!(!m1.is_panic_poisoned());
+
+    let error = m1.lock().await.unwrap_err();
+    assert!(error.is_cancel());
+    assert!(!error.is_panic());
+}
+
+#[tokio::test]
+async fn cancelled_perform_async_local() {
+    #[derive(Debug)]
+    struct Foo(u32);
+
+    let m1: Arc<RobustMutex<Foo>> = Arc::new(RobustMutex::new(Foo(0)));
+    {
+        let permit = m1.lock().await.unwrap();
+        cancel_perform_async_boxed_local(permit).await;
+    }
+
+    // The mutex should be poisoned due to a cancellation.
+    assert!(m1.is_poisoned());
+    assert!(m1.is_cancel_poisoned());
+    assert!(!m1.is_panic_poisoned());
+
     let error = m1.lock().await.unwrap_err();
     assert!(error.is_cancel());
     assert!(!error.is_panic());
@@ -140,8 +164,15 @@ async fn panicking_task() {
         .await
         .unwrap_err();
     }
-    // This returns a PoisonError.
-    m1.lock().await.unwrap_err();
+    assert!(m1.is_poisoned());
+    assert!(!m1.is_cancel_poisoned());
+    assert!(m1.is_panic_poisoned());
+
+    {
+        let error = m1.lock().await.unwrap_err();
+        assert!(!error.is_cancel());
+        assert!(error.is_panic());
+    }
 
     // This returns a TryLockError of the Poisoned kind.
     let error = m1.try_lock().unwrap_err();
@@ -206,6 +237,23 @@ async fn mutex_debug_display() {
         format!("{:?}", m),
         r#"RobustMutex { data: <locked>, poisoned: (poisoned by panic) }"#
     );
+
+    // Try acquiring the lock and printing out the `PoisonError`.
+    {
+        let error = m.lock().await.unwrap_err();
+        assert_eq!(error.to_string(), "poisoned lock (poisoned by panic)");
+        assert_eq!(
+            format!("{:?}", error),
+            r#"PoisonError { flags: (poisoned by panic), .. }"#
+        );
+    }
+
+    let error = m.try_lock().unwrap_err();
+    assert_eq!(error.to_string(), "poisoned lock (poisoned by panic)");
+    assert_eq!(
+        format!("{:?}", error),
+        r#"Poisoned(PoisonError { flags: (poisoned by panic), .. })"#
+    );
 }
 
 #[tokio::test]
@@ -217,19 +265,85 @@ async fn mutex_debug_display_cancellation() {
     let m2 = m.clone();
     tokio::task::spawn(async move {
         let permit = m2.lock().await.unwrap();
-        cancel_perform_async(permit).await;
+        cancel_perform_async_boxed(permit).await;
     })
     .await
     .unwrap();
 
     assert_eq!(
         format!("{:?}", m),
-        r#"RobustMutex { data: <locked>, poisoned: (poisoned by cancellation) }"#
+        r#"RobustMutex { data: <locked>, poisoned: (poisoned by async cancellation) }"#
+    );
+
+    // Try acquiring the lock and printing out the `PoisonError`.
+    {
+        let error = m.lock().await.unwrap_err();
+        assert_eq!(
+            error.to_string(),
+            "poisoned lock (poisoned by async cancellation)"
+        );
+        assert_eq!(
+            format!("{:?}", error),
+            r#"PoisonError { flags: (poisoned by async cancellation), .. }"#
+        );
+    }
+
+    let error = m.try_lock().unwrap_err();
+    assert_eq!(
+        error.to_string(),
+        "poisoned lock (poisoned by async cancellation)"
+    );
+    assert_eq!(
+        format!("{:?}", error),
+        r#"Poisoned(PoisonError { flags: (poisoned by async cancellation), .. })"#
     );
 }
 
-/// A basic function to test that a permit can be used to cancel a future.
-async fn cancel_perform_async<T>(permit: ActionPermit<'_, T>) {
+#[tokio::test]
+async fn mutex_debug_display_cancellation_and_panic() {
+    let s = "data";
+    let m = Arc::new(RobustMutex::new(s.to_string()));
+
+    // Cancel in the middle of perform_async.
+    let m2 = m.clone();
+    tokio::task::spawn(async move {
+        let permit = m2.lock().await.unwrap();
+        panic_perform_async_boxed(permit).await;
+    })
+    .await
+    .unwrap_err();
+
+    assert_eq!(
+        format!("{:?}", m),
+        r#"RobustMutex { data: <locked>, poisoned: (poisoned by panic, async cancellation) }"#
+    );
+
+    // Try acquiring the lock and printing out the `PoisonError`.
+    {
+        let error = m.lock().await.unwrap_err();
+        assert_eq!(
+            error.to_string(),
+            "poisoned lock (poisoned by panic, async cancellation)"
+        );
+        assert_eq!(
+            format!("{:?}", error),
+            r#"PoisonError { flags: (poisoned by panic, async cancellation), .. }"#
+        );
+    }
+
+    let error = m.try_lock().unwrap_err();
+    assert_eq!(
+        error.to_string(),
+        "poisoned lock (poisoned by panic, async cancellation)"
+    );
+    assert_eq!(
+        format!("{:?}", error),
+        r#"Poisoned(PoisonError { flags: (poisoned by panic, async cancellation), .. })"#
+    );
+}
+
+/// A helper function to perform a cancellation in the middle of a perform_async_boxed.
+async fn cancel_perform_async_boxed<T>(permit: ActionPermit<'_, T>) {
     let fut = permit.perform_async_boxed(|_| {
         async move {
             tokio::time::sleep(Duration::from_millis(100)).await;
@@ -244,4 +358,34 @@ async fn cancel_perform_async<T>(permit: ActionPermit<'_, T>) {
             // This is expected.
         }
     }
+}
+
+/// A helper function to perform a cancellation in the middle of a perform_async_boxed_local.
+async fn cancel_perform_async_boxed_local<T>(permit: ActionPermit<'_, T>) {
+    let fut = permit.perform_async_boxed_local(|_| {
+        async move {
+            tokio::time::sleep(Duration::from_millis(100)).await;
+        }
+        .boxed_local()
+    });
+    tokio::select! {
+        _ = fut => {
+            panic!("Future should have been cancelled");
+        }
+        _ = tokio::time::sleep(Duration::from_millis(1)) => {
+            // This is expected.
+        }
+    }
+}
+
+/// A helper function to perform a panic in the middle of a perform_async_boxed.
+async fn panic_perform_async_boxed<T>(permit: ActionPermit<'_, T>) {
+    permit
+        .perform_async_boxed(|_| {
+            async move {
+                panic!("oh no!");
+            }
+            .boxed()
+        })
+        .await;
 }

@@ -62,7 +62,7 @@ impl<T> fmt::Debug for PoisonError<T> {
 
 impl<T> fmt::Display for PoisonError<T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "poisoned lock: {:?}", DebugFlags(self.flags))
+        write!(f, "poisoned lock {:?}", DebugFlags(self.flags))
     }
 }
 
@@ -236,7 +236,7 @@ impl fmt::Debug for DebugFlags {
                 poisoned_by.push("panic");
             }
             if self.0 & CANCEL_POISON != 0 {
-                poisoned_by.push("cancellation");
+                poisoned_by.push("async cancellation");
             }
 
             write!(f, "(poisoned by {})", poisoned_by.join(", "))

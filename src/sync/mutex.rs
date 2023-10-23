@@ -398,7 +398,9 @@ impl<T: ?Sized> RobustMutex<T> {
     ///         *n = 1;
     ///     }.boxed());
     ///     tokio::select! {
-    ///         _ = fut => {}
+    ///         _ = fut => {
+    ///             panic!("this branch should not be encountered");
+    ///         }
     ///         _ = tokio::time::sleep(std::time::Duration::from_millis(100)) => {
     ///             // Exit the task, causing `fut` to be cancelled after 100ms.
     ///         }
