@@ -11,3 +11,5 @@ mod poison;
 
 #[cfg(feature = "std")]
 pub use mutex::*;
+#[cfg(feature = "std")]
+pub use poison::{LockResult, PoisonError, TryLockError, TryLockResult};

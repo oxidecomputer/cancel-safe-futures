@@ -1,9 +1,7 @@
-use super::poison;
-use std::{
-    fmt,
-    sync::{LockResult, TryLockError, TryLockResult},
-};
-use tokio::sync::{MappedMutexGuard, MutexGuard};
+use super::poison::{self, LockResult, TryLockError, TryLockResult};
+use futures_core::future::{BoxFuture, LocalBoxFuture};
+use std::fmt;
+use tokio::sync::MutexGuard;
 
 /// A cancel-safe and panic-safe variant of [`tokio::sync::Mutex`].
 ///
@@ -94,13 +92,20 @@ use tokio::sync::{MappedMutexGuard, MutexGuard};
 ///
 /// # Cancel safety
 ///
-/// To prevent async cancellations in the middle of the critical section, this mutex does not allow
-/// await points to be within a critical section. This is done by returning [`ActionPermit`]
-/// instances which only provide access to the guarded data within a synchronous closure, as opposed
-/// to the RAII style that [`std::sync::MutexGuard`] and [`tokio::sync::MutexGuard`] use.
+/// To guard against async cancellations in the middle of the critical section, the mutex uses a
+/// callback approach. This is done by returning [`ActionPermit`] instances which provide access to
+/// the guarded data in two ways:
 ///
-/// This does mean that there are patterns that are not possible with this mutex. For example, you
-/// cannot perform a pattern where:
+/// 1. [`perform()`], which accepts a synchronous closure that cannot have await points within it.
+/// 2. [`perform_async_boxed()`] and [`perform_async_boxed_local()`], which accept asynchronous
+///    closures. If the future returned by these methods is cancelled in the middle of execution,
+///    the lock gets marked poisoned.
+///
+/// In general, it is recommended that [`perform()`] be used and mutexes not be held across await
+/// points at all, since that can cause performance and correctness issues.
+///
+/// Not using an RAII pattern does mean that there are patterns that are not possible with this
+/// mutex. For example, you cannot perform a pattern where:
 ///
 /// 1. You acquire a lock *L₁*.
 /// 2. You acquire a second lock *L₂*.
@@ -150,10 +155,12 @@ use tokio::sync::{MappedMutexGuard, MutexGuard};
 ///
 /// # Features
 ///
-/// Basic mutex operations are supported, as well as [`ActionPermit::map`] to produce a
-/// [`MappedActionPermit`]. In the future, this will support:
+/// Basic mutex operations are supported. In the future, this will support:
 ///
 /// - An `OwnedActionPermit`, similar to [`tokio::sync::OwnedMutexGuard`].
+///
+/// Mapped action permits similar to [`tokio::sync::MappedMutexGuard`] will likely not be supported
+/// because it's hard to define panic and cancel safety in that scenario.
 ///
 /// # Why "robust"?
 ///
@@ -162,6 +169,10 @@ use tokio::sync::{MappedMutexGuard, MutexGuard};
 /// These functions aim to achieve very similar goals to this mutex, except in slightly different
 /// circumstances (*thread* cancellations and terminations rather than *task* cancellations and
 /// panics).
+///
+/// [`perform()`]: ActionPermit::perform
+/// [`perform_async_boxed()`]: ActionPermit::perform_async_boxed
+/// [`perform_async_boxed_local()`]: ActionPermit::perform_async_boxed_local
 pub struct RobustMutex<T: ?Sized> {
     poison: poison::Flag,
     inner: tokio::sync::Mutex<T>,
@@ -322,16 +333,24 @@ impl<T: ?Sized> RobustMutex<T> {
 
     /// Determines whether the mutex is poisoned.
     ///
-    /// If another thread is active, the mutex can still become poisoned at any
-    /// time. You should not trust a `false` value for program correctness
-    /// without additional synchronization.
+    /// This is equivalent to [`Self::is_panic_poisoned`]` || `[`Self::is_cancel_poisoned`].
+    ///
+    /// If another task is active, the mutex can still become poisoned at any time. You should not
+    /// trust a `false` value for program correctness without additional synchronization.
+    pub fn is_poisoned(&self) -> bool {
+        self.poison.get_flags() != poison::NO_POISON
+    }
+
+    /// Determines whether the mutex is poisoned due to a panic.
+    ///
+    /// If another task is active, the mutex can still become poisoned at any time. You should not
+    /// trust a `false` value for program correctness without additional synchronization.
     ///
     /// # Examples
     ///
     /// ```
     /// use cancel_safe_futures::sync::RobustMutex;
     /// use std::sync::Arc;
-    /// use std::thread;
     ///
     /// # #[tokio::main]
     /// # async fn main() {
@@ -340,14 +359,58 @@ impl<T: ?Sized> RobustMutex<T> {
     /// let c_mutex = Arc::clone(&mutex);
     ///
     /// let _ = tokio::task::spawn(async move {
-    ///     let _lock = c_mutex.lock().await.unwrap();
-    ///     panic!(); // the mutex gets poisoned
+    ///     let permit = c_mutex.lock().await.unwrap();
+    ///     permit.perform(|_| {
+    ///         panic!(); // the mutex gets poisoned
+    ///     });
     /// }).await;
-    /// assert_eq!(mutex.is_poisoned(), true);
+    ///
+    /// assert!(mutex.is_panic_poisoned());
     /// # }
     /// ```
-    pub fn is_poisoned(&self) -> bool {
-        self.poison.get()
+    pub fn is_panic_poisoned(&self) -> bool {
+        self.poison.get_flags() & poison::PANIC_POISON != 0
+    }
+
+    /// Determines whether this mutex is poisoned due to a cancellation.
+    ///
+    /// If another task is active, the mutex can still become poisoned at any time. You should not
+    /// trust a `false` value for program correctness without additional synchronization.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use cancel_safe_futures::sync::RobustMutex;
+    /// use futures::FutureExt;
+    /// use std::sync::Arc;
+    ///
+    /// # #[tokio::main]
+    /// # async fn main() {
+    ///
+    /// let mutex = Arc::new(RobustMutex::new(0));
+    /// let c_mutex = Arc::clone(&mutex);
+    ///
+    /// tokio::task::spawn(async move {
+    ///     let permit = c_mutex.lock().await.unwrap();
+    ///     let fut = permit.perform_async_boxed(|n| async move {
+    ///         // Sleep for 1 second.
+    ///         tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+    ///         *n = 1;
+    ///     }.boxed());
+    ///     tokio::select! {
+    ///         _ = fut => {}
+    ///         _ = tokio::time::sleep(std::time::Duration::from_millis(100)) => {
+    ///             // Exit the task, causing `fut` to be cancelled after 100ms.
+    ///         }
+    ///     }
+    /// }).await.unwrap();
+    ///
+    /// assert!(mutex.is_cancel_poisoned());
+    ///
+    /// # }
+    /// ```
+    pub fn is_cancel_poisoned(&self) -> bool {
+        self.poison.get_flags() & poison::CANCEL_POISON != 0
     }
 
     /// Returns a mutable reference to the underlying data.
@@ -405,7 +468,7 @@ impl<T: ?Sized + fmt::Debug> fmt::Debug for RobustMutex<T> {
             Ok(inner) => d.field("data", &inner.guard),
             Err(_) => d.field("data", &format_args!("<locked>")),
         };
-        d.field("poisoned", &self.poison.get());
+        d.field("poisoned", &self.poison);
         d.finish()
     }
 }
@@ -477,21 +540,17 @@ impl<T: ?Sized + fmt::Debug> fmt::Debug for RobustMutex<T> {
 ///
 /// This is very similar to the cancel unsafety that [`futures::SinkExt::send`] has, and that this
 /// crate's [`SinkExt::reserve`](crate::SinkExt::reserve) solves.
-#[clippy::has_significant_drop]
+#[derive(Debug)]
 pub struct ActionPermit<'a, T: ?Sized> {
     poison: &'a poison::Flag,
-    poison_guard: poison::Guard,
     guard: MutexGuard<'a, T>,
 }
 
 impl<'a, T: ?Sized> ActionPermit<'a, T> {
-    /// Invariant: the mutex must be locked when this is called.
+    /// Invariant: the mutex must be locked when this is called. (This is ensured by requiring a
+    /// guard).
     fn new(guard: MutexGuard<'a, T>, poison: &'a poison::Flag) -> LockResult<Self> {
-        poison::map_result(poison.guard(), |poison_guard| Self {
-            guard,
-            poison,
-            poison_guard,
-        })
+        poison::map_result(poison.borrow(), |()| Self { poison, guard })
     }
 
     /// Runs a closure with access to the guarded data, consuming the permit in the process and
@@ -524,298 +583,137 @@ impl<'a, T: ?Sized> ActionPermit<'a, T> {
     where
         F: FnOnce(&mut T) -> R,
     {
+        let poison_guard = self.poison.guard_assuming_no_poison();
+        let _poisoner = Poisoner {
+            poison: self.poison,
+            poison_guard,
+        };
+
         action(&mut *self.guard)
 
-        // Note: we're relying on the Drop impl for `self` to unlock the mutex.
+        // Note: we're relying on the Drop impl for `_poisoner` to unlock the mutex.
     }
 
-    /// Makes a new [`MappedActionPermit`] for a component of the locked data.
+    /// Runs an asynchronous block in the context of the guarded data, consuming the permit in the
+    /// process and unlocking the mutex once the block completes.
     ///
-    /// This operation cannot fail as the [`ActionPermit`] passed in already locked the mutex.
+    /// In general, holding asynchronous locks across await points can lead to surprising
+    /// performance issues. It is strongly recommended that [`perform`](Self::perform) is used, or
+    /// that the code is rewritten to use message passing.
     ///
     /// # Notes
     ///
-    /// If `f` panics, the mutex is marked poisoned.
+    /// The mutex is marked poisoned if any of the following occur:
+    ///
+    /// * The future returned by `action` panics.
+    /// * The future returned by this async function is cancelled before being driven to completion.
+    ///
+    /// Due to [limitations in stable
+    /// Rust](https://kevincox.ca/2022/04/16/rust-generic-closure-lifetimes), this accepts a dynamic
+    /// [`BoxFuture`] rather than a generic future. Once [async
+    /// closures](https://rust-lang.github.io/async-fundamentals-initiative/roadmap/async_closures.html)
+    /// are stabilized, this will switch to them.
     ///
     /// # Examples
     ///
     /// ```
     /// use cancel_safe_futures::sync::RobustMutex;
-    ///
-    /// #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-    /// struct Foo(u32);
-    ///
-    /// # #[tokio::main]
-    /// # async fn main() {
-    /// let foo = RobustMutex::new(Foo(1));
-    ///
-    /// {
-    ///     let mapped = foo.lock().await.unwrap().map(|f| &mut f.0);
-    ///     mapped.perform(|n| *n = 2);
-    /// }
-    ///
-    /// let permit = foo.lock().await.unwrap();
-    /// permit.perform(|f| assert_eq!(*f, Foo(2)));
-    /// # }
-    /// ```
-    #[inline]
-    pub fn map<U, F>(self, f: F) -> MappedActionPermit<'a, U>
-    where
-        F: FnOnce(&mut T) -> &mut U,
-    {
-        // SAFETY: This duplicates guard and then forgets the original. In the end, we have not
-        // duplicated or forgotten any values.
-        let guard = MutexGuard::map(unsafe { std::ptr::read(&self.guard) }, f);
-        let inner = self.skip_drop();
-
-        MappedActionPermit {
-            poison: inner.poison,
-            poison_guard: inner.poison_guard,
-            guard,
-        }
-    }
-
-    /// Attempts to make a new [`MappedActionPermit`] for a component of the locked data. The
-    /// original guard is returned if the closure returns `None`.
-    ///
-    /// This operation cannot fail as the [`ActionPermit`] passed in already locked the mutex.
-    ///
-    /// # Notes
-    ///
-    /// If `f` panics, the mutex is marked poisoned.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use cancel_safe_futures::sync::RobustMutex;
-    ///
-    /// #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-    /// struct Foo(u32);
+    /// use futures::FutureExt;  // for FutureExt::boxed()
+    /// use std::time::Duration;
     ///
     /// #[tokio::main]
     /// async fn main() {
-    ///     let foo = RobustMutex::new(Foo(1));
-    ///
-    ///     {
-    ///         let mapped = foo.lock().await.unwrap().try_map(|f| Some(&mut f.0))
-    ///              .expect("should not fail");
-    ///         mapped.perform(|n| *n = 2);
-    ///     }
-    ///
-    ///     let permit = foo.lock().await.unwrap();
-    ///     permit.perform(|f| assert_eq!(*f, Foo(2)));
-    /// }
-    #[inline]
-    pub fn try_map<U, F>(self, f: F) -> Result<MappedActionPermit<'a, U>, Self>
-    where
-        F: FnOnce(&mut T) -> Option<&mut U>,
-    {
-        // SAFETY: This duplicates guard and then forgets the original. In the end, we have not
-        // duplicated or forgotten any values.
-        let guard = MutexGuard::try_map(unsafe { std::ptr::read(&self.guard) }, f);
-        let inner = self.skip_drop();
-
-        match guard {
-            Ok(guard) => Ok(MappedActionPermit {
-                poison: inner.poison,
-                poison_guard: inner.poison_guard,
-                guard,
-            }),
-            Err(guard) => Err(ActionPermit {
-                poison: inner.poison,
-                poison_guard: inner.poison_guard,
-                // This is the original guard.
-                guard,
-            }),
-        }
-    }
-
-    fn skip_drop(self) -> ActionPermitInner<'a> {
-        let me = std::mem::ManuallyDrop::new(self);
-        // SAFETY: This duplicates poison_guard and then forgets the original. In the end, we have
-        // not duplicated or forgotten any values.
-        unsafe {
-            ActionPermitInner {
-                poison: me.poison,
-                poison_guard: std::ptr::read(&me.poison_guard),
-            }
-        }
-    }
-}
-
-impl<T: ?Sized> Drop for ActionPermit<'_, T> {
-    #[inline]
-    fn drop(&mut self) {
-        self.poison.done(&self.poison_guard);
-    }
-}
-
-impl<T: ?Sized + fmt::Debug> fmt::Debug for ActionPermit<'_, T> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fmt::Debug::fmt(&*self.guard, f)
-    }
-}
-
-impl<T: ?Sized + fmt::Display> fmt::Display for ActionPermit<'_, T> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fmt::Display::fmt(&*self.guard, f)
-    }
-}
-
-/// A handle to a held [`RobustMutex`] that has had a function applied to it via [`ActionPermit::map`].
-///
-/// This can be used to hold a subfield of the protected data.
-#[clippy::has_significant_drop]
-pub struct MappedActionPermit<'a, T: ?Sized> {
-    poison: &'a poison::Flag,
-    poison_guard: poison::Guard,
-    guard: MappedMutexGuard<'a, T>,
-}
-
-impl<'a, T: ?Sized> MappedActionPermit<'a, T> {
-    /// Runs a closure with access to the guarded data, consuming the permit in the process and
-    /// unlocking the mutex once the closure completes.
-    ///
-    /// This is a synchronous closure, which means that it cannot have await points within it. This
-    /// guarantees cancel safety for this mutex.
-    ///
-    /// # Notes
-    ///
-    /// `action` is *not* run inside a synchronous context. This means that operations like
-    /// [`tokio::sync::mpsc::Sender::blocking_send`] will panic inside `action`.
-    ///
-    /// If `action` panics, the mutex is marked poisoned.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use cancel_safe_futures::sync::RobustMutex;
-    ///
-    /// #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-    /// struct Foo(u32);
-    ///
-    /// #[tokio::main]
-    /// async fn main() {
-    ///     let mutex = RobustMutex::new(Foo(1));
+    ///     let mutex = RobustMutex::new(1);
     ///
     ///     let permit = mutex.lock().await.unwrap();
-    ///     let mapped = permit.map(|foo| &mut foo.0);
-    ///     mapped.perform(|n| *n = 2);
+    ///     permit.perform_async_boxed(|n| {
+    ///         async move {
+    ///             tokio::time::sleep(
+    ///                 std::time::Duration::from_millis(100),
+    ///             ).await;
+    ///             *n = 2;
+    ///         }
+    ///         .boxed()
+    ///     }).await;
     ///
-    ///     let permit2 = mutex.lock().await.unwrap();
-    ///     permit2.perform(|foo| assert_eq!(*foo, Foo(2)));
+    ///     // Check that the new value of the mutex is 2.
+    ///     let permit = mutex.lock().await.unwrap();
+    ///     permit.perform(|n| assert_eq!(*n, 2));
     /// }
     /// ```
-    pub fn perform<R, F>(mut self, action: F) -> R
+    pub async fn perform_async_boxed<R, F>(mut self, action: F) -> R
     where
-        F: FnOnce(&mut T) -> R,
+        F: for<'lock> FnOnce(&'lock mut T) -> BoxFuture<'lock, R>,
     {
-        action(&mut *self.guard)
+        let poison_guard = self.poison.guard_assuming_no_poison();
+        let mut poisoner = AsyncPoisoner {
+            poison: self.poison,
+            poison_guard,
+            terminated: false,
+        };
+        // At this point, the future can:
+        // * panic, in which case both the panic and (since the future isn't complete) cancel poison
+        //   flags are set.
+        // * be dropped without being driven to completion, in which case the cancel poison flag is
+        //   set.
+        let ret = action(&mut *self.guard).await;
 
-        // Note: we're relying on the Drop impl for `self` to unlock the mutex.
+        // At this point, the future has completed.
+        poisoner.terminated = true;
+        ret
     }
 
-    /// Makes a new [`MappedActionPermit`] for a component of the locked data.
+    /// Runs a non-`Send` asynchronous block in the context of the guarded data, consuming the
+    /// permit in the process and unlocking the mutex once the block completes.
     ///
-    /// This operation cannot fail as the [`MappedActionPermit`] passed in already locked the mutex.
-    ///
-    /// # Notes
-    ///
-    /// If `f` panics, the mutex is marked poisoned.
-    #[inline]
-    pub fn map<U, F>(self, f: F) -> MappedActionPermit<'a, U>
+    /// This is a variant of [`perform_async_boxed`](Self::perform_async_boxed) that allows the
+    /// future to be non-`Send`.
+    pub async fn perform_async_boxed_local<R, F>(mut self, action: F) -> R
     where
-        F: FnOnce(&mut T) -> &mut U,
+        F: for<'lock> FnOnce(&'lock mut T) -> LocalBoxFuture<'lock, R>,
     {
-        // SAFETY: This duplicates guard and then forgets the original. In the end, we have not
-        // duplicated or forgotten any values.
-        let guard = MappedMutexGuard::map(unsafe { std::ptr::read(&self.guard) }, f);
-        let inner = self.skip_drop();
+        let poison_guard = self.poison.guard_assuming_no_poison();
+        let mut poisoner = AsyncPoisoner {
+            poison: self.poison,
+            poison_guard,
+            terminated: false,
+        };
+        // At this point, the future can:
+        // * panic, in which case both the panic and (since the future isn't complete) cancel poison
+        //   flags are set.
+        // * be dropped without being driven to completion, in which case the cancel poison flag is
+        //   set.
+        let ret = action(&mut *self.guard).await;
 
-        MappedActionPermit {
-            poison: inner.poison,
-            poison_guard: inner.poison_guard,
-            guard,
-        }
-    }
-
-    /// Attempts to make a new [`MappedActionPermit`] for a component of the locked data. The
-    /// original guard is returned if the closure returns `None`.
-    ///
-    /// This operation cannot fail as the [`MappedActionPermit`] passed in already locked the mutex.
-    ///
-    /// # Notes
-    ///
-    /// If `f` panics, the mutex is marked poisoned.
-    #[inline]
-    pub fn try_map<U, F>(self, f: F) -> Result<MappedActionPermit<'a, U>, Self>
-    where
-        F: FnOnce(&mut T) -> Option<&mut U>,
-    {
-        // SAFETY: This duplicates guard and then forgets the original. In the end, we have not
-        // duplicated or forgotten any values.
-        let guard = MappedMutexGuard::try_map(unsafe { std::ptr::read(&self.guard) }, f);
-        let inner = self.skip_drop();
-
-        match guard {
-            Ok(guard) => Ok(MappedActionPermit {
-                poison: inner.poison,
-                poison_guard: inner.poison_guard,
-                guard,
-            }),
-            Err(guard) => Err(MappedActionPermit {
-                poison: inner.poison,
-                poison_guard: inner.poison_guard,
-                // This is the original guard.
-                guard,
-            }),
-        }
-    }
-
-    fn skip_drop(self) -> MappedActionPermitInner<'a> {
-        let me = std::mem::ManuallyDrop::new(self);
-        // SAFETY: This duplicates poison_guard and then forgets the original. In the end,
-        // we have not duplicated or forgotten any values.
-        unsafe {
-            MappedActionPermitInner {
-                poison: me.poison,
-                poison_guard: std::ptr::read(&me.poison_guard),
-            }
-        }
+        // At this point, the future has completed.
+        poisoner.terminated = true;
+        ret
     }
 }
 
-impl<T: ?Sized> Drop for MappedActionPermit<'_, T> {
+#[clippy::has_significant_drop]
+struct Poisoner<'a> {
+    poison: &'a poison::Flag,
+    poison_guard: poison::Guard,
+}
+
+impl<'a> Drop for Poisoner<'a> {
     #[inline]
     fn drop(&mut self) {
-        self.poison.done(&self.poison_guard);
+        self.poison.done(&self.poison_guard, false);
     }
 }
 
-impl<T: ?Sized + fmt::Debug> fmt::Debug for MappedActionPermit<'_, T> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fmt::Debug::fmt(&*self.guard, f)
-    }
-}
-
-impl<T: ?Sized + fmt::Display> fmt::Display for MappedActionPermit<'_, T> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fmt::Display::fmt(&*self.guard, f)
-    }
-}
-
-/// A helper type used when taking apart an `ActionPermit` without running its
-/// Drop implementation.
-#[allow(dead_code)] // Unused fields are still used in Drop.
-struct ActionPermitInner<'a> {
+#[clippy::has_significant_drop]
+struct AsyncPoisoner<'a> {
     poison: &'a poison::Flag,
     poison_guard: poison::Guard,
+    terminated: bool,
 }
 
-/// A helper type used when taking apart a `MappedActionPermit` without running its
-/// Drop implementation.
-/// #[allow(dead_code)] // Unused fields are still used in Drop.
-struct MappedActionPermitInner<'a> {
-    poison: &'a poison::Flag,
-    poison_guard: poison::Guard,
+impl<'a> Drop for AsyncPoisoner<'a> {
+    #[inline]
+    fn drop(&mut self) {
+        self.poison.done(&self.poison_guard, !self.terminated);
+    }
 }

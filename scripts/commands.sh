@@ -40,15 +40,7 @@ run_miri() {
     run_cargo_std miri nextest run --all-targets -j2
 }
 
-run_coverage() {
-    echo_err "Running coverage"
-    run_cargo_std llvm-cov nextest --all-targets
-}
-
 run_doctest() {
-    echo_err "Running doctests"
-    cargo test --doc
-
     echo_err "Running doctests with all features"
     cargo test --all-features --doc
 }
@@ -115,7 +107,6 @@ while [[ "$#" -gt 0 ]]; do
         miri) run_miri ;;
         coverage) run_coverage ;;
         dt|doctest) run_doctest ;;
-        coverage) run_coverage ;;
         build-no-std)
             shift;
             case $1 in
