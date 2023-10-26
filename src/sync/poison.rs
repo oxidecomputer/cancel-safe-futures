@@ -24,29 +24,34 @@ impl<T> PoisonError<T> {
 
     /// Returns true if this error indicates that the lock was poisoned by a
     /// panic from another task.
+    #[inline]
     pub fn is_panic(&self) -> bool {
         self.flags & PANIC_POISON != 0
     }
 
     /// Returns true if this error indicates that the lock was poisoned by an early cancellation.
+    #[inline]
     pub fn is_cancel(&self) -> bool {
         self.flags & CANCEL_POISON != 0
     }
 
     /// Consumes this error indicating that a lock is poisoned, returning the
     /// underlying guard to allow access regardless.
+    #[inline]
     pub fn into_inner(self) -> T {
         self.guard
     }
 
     /// Reaches into this error indicating that a lock is poisoned, returning a
     /// reference to the underlying guard to allow access regardless.
+    #[inline]
     pub fn get_ref(&self) -> &T {
         &self.guard
     }
 
     /// Reaches into this error indicating that a lock is poisoned, returning a
     /// mutable reference to the underlying guard to allow access regardless.
+    #[inline]
     pub fn get_mut(&mut self) -> &mut T {
         &mut self.guard
     }

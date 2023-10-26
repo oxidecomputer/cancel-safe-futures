@@ -60,7 +60,7 @@ use tokio::sync::MutexGuard;
 ///   where the invariants are violated. This is a problem because this is an inconsistent state --
 ///   other tasks which acquire the lock can no longer assume that the invariants are upheld.
 ///
-///   This is the problem that *poisoning* solves.
+///   This is the problem that *panic safety* solves.
 ///
 /// * In async code, what if there's an await point between (1) and (2), and the future is dropped
 ///   at that await point? Then, too, the invariants are violated. With synchronous code the only
@@ -70,10 +70,10 @@ use tokio::sync::MutexGuard;
 ///   This is the problem that *cancel safety* solves.
 ///
 /// Both of these problems can also be solved in an ad-hoc manner (for example, by carefully
-/// checking for and restoring invariants at the start of each critical section). However, the goal
-/// of this mutex is to provide a systematic, if conservative, solution to these problems.
+/// checking for and restoring invariants at the start of each critical section). However, **the goal
+/// of this mutex is to provide a systematic, if conservative, solution to these problems.**
 ///
-/// # Panic safety with poisoning
+/// # Panic safety
 ///
 /// Like [`std::sync::Mutex`] but *unlike* [`tokio::sync::Mutex`], this mutex implements a strategy
 /// called "poisoning" where a mutex is considered poisoned whenever a task panics while holding the
@@ -85,10 +85,10 @@ use tokio::sync::MutexGuard;
 /// a possibly invalid invariant is not witnessed.
 ///
 /// A poisoned mutex, however, does not prevent all access to the underlying data. The
-/// [`PoisonError`](std::sync::PoisonError) type has an
-/// [`into_inner`](std::sync::PoisonError::into_inner) method which will return the guard that would
-/// have otherwise been returned on a successful lock. This allows access to the data, despite the
-/// lock being poisoned.
+/// [`PoisonError`](crate::sync::PoisonError) type has an
+/// [`into_inner`](crate::sync::PoisonError::into_inner) method which will return the guard that
+/// would have otherwise been returned on a successful lock. This allows access to the data, despite
+/// the lock being poisoned.
 ///
 /// # Cancel safety
 ///
@@ -99,21 +99,21 @@ use tokio::sync::MutexGuard;
 /// 1. [`perform()`], which accepts a synchronous closure that cannot have await points within it.
 /// 2. [`perform_async_boxed()`] and [`perform_async_boxed_local()`], which accept asynchronous
 ///    closures. If the future returned by these methods is cancelled in the middle of execution,
-///    the lock gets marked poisoned.
+///    the mutex is marked as poisoned.
 ///
 /// In general, it is recommended that [`perform()`] be used and mutexes not be held across await
 /// points at all, since that can cause performance and correctness issues.
 ///
-/// Not using an RAII pattern does mean that there are patterns that are not possible with this
-/// mutex. For example, you cannot perform a pattern where:
+/// Not using an RAII guard like [`std::sync::MutexGuard`] does mean that there are patterns that
+/// are not possible with this mutex. For example, you cannot perform a pattern where:
 ///
 /// 1. You acquire a lock *L₁*.
 /// 2. You acquire a second lock *L₂*.
 /// 3. You release *L₁*.
 /// 4. You release *L₂*.
 ///
-/// But generally speaking, you should release *L₂* before *L₁*. If you really do need to do this,
-/// [`std::sync::Mutex`] and [`tokio::sync::Mutex`] remain available.
+/// If you really do need to do this or more complicated patterns, [`std::sync::Mutex`] and
+/// [`tokio::sync::Mutex`] remain available.
 ///
 /// # Examples
 ///
@@ -337,6 +337,7 @@ impl<T: ?Sized> RobustMutex<T> {
     ///
     /// If another task is active, the mutex can still become poisoned at any time. You should not
     /// trust a `false` value for program correctness without additional synchronization.
+    #[inline]
     pub fn is_poisoned(&self) -> bool {
         self.poison.get_flags() != poison::NO_POISON
     }
@@ -368,6 +369,7 @@ impl<T: ?Sized> RobustMutex<T> {
     /// assert!(mutex.is_panic_poisoned());
     /// # }
     /// ```
+    #[inline]
     pub fn is_panic_poisoned(&self) -> bool {
         self.poison.get_flags() & poison::PANIC_POISON != 0
     }
@@ -411,6 +413,7 @@ impl<T: ?Sized> RobustMutex<T> {
     ///
     /// # }
     /// ```
+    #[inline]
     pub fn is_cancel_poisoned(&self) -> bool {
         self.poison.get_flags() & poison::CANCEL_POISON != 0
     }
@@ -430,6 +433,7 @@ impl<T: ?Sized> RobustMutex<T> {
     /// let n = mutex.get_mut();
     /// *n = 2;
     /// ```
+    #[inline]
     pub fn get_mut(&mut self) -> &mut T {
         self.inner.get_mut()
     }
@@ -551,6 +555,7 @@ pub struct ActionPermit<'a, T: ?Sized> {
 impl<'a, T: ?Sized> ActionPermit<'a, T> {
     /// Invariant: the mutex must be locked when this is called. (This is ensured by requiring a
     /// guard).
+    #[inline]
     fn new(guard: MutexGuard<'a, T>, poison: &'a poison::Flag) -> LockResult<Self> {
         poison::map_result(poison.borrow(), |()| Self { poison, guard })
     }
