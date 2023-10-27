@@ -5,11 +5,11 @@
 use core::sync::atomic::{AtomicU8, Ordering};
 use std::{error, fmt, thread};
 
-/// A type of error which can be returned whenever a lock is acquired.
+/// A type of error which can be returned whenever a [`RobustMutex`] is acquired.
 ///
-/// [`RobustMutex`]es poisoned whenever a thread panics or a cancellation happens while the lock is
-/// held. The precise semantics for when a lock is poisoned is documented on each lock, but once a
-/// lock is poisoned then all future acquisitions will return this error.
+/// [`RobustMutex`]es are poisoned whenever a thread panics or a cancellation happens while the lock
+/// is held. The precise semantics for when a lock is poisoned is documented on [`RobustMutex`], but
+/// once a lock is poisoned then all future acquisitions will return this error.
 ///
 /// [`RobustMutex`]: crate::sync::RobustMutex
 pub struct PoisonError<T> {

@@ -70,14 +70,15 @@ use tokio::sync::MutexGuard;
 ///   This is the problem that *cancel safety* solves.
 ///
 /// Both of these problems can also be solved in an ad-hoc manner (for example, by carefully
-/// checking for and restoring invariants at the start of each critical section). However, **the goal
-/// of this mutex is to provide a systematic, if conservative, solution to these problems.**
+/// checking for and restoring invariants at the start of each critical section). However, **the
+/// goal of this mutex is to provide a systematic, if conservative, solution to these problems.**
 ///
 /// # Panic safety
 ///
 /// Like [`std::sync::Mutex`] but *unlike* [`tokio::sync::Mutex`], this mutex implements a strategy
-/// called "poisoning" where a mutex is considered poisoned whenever a task panics while holding the
-/// mutex. Once a mutex is poisoned, all other tasks are unable to access the data by default.
+/// called "poisoning" where a mutex is considered poisoned whenever a task panics within one of the
+/// [`ActionPermit`] perform methods. Once a mutex is poisoned, all other tasks are unable to access
+/// the data by default.
 ///
 /// This means that the [`lock`](Self::lock) and [`try_lock`](Self::try_lock) methods return a
 /// [`Result`] which indicates whether a mutex has been poisoned or not. Most usage of a mutex will
