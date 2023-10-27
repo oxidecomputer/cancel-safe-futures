@@ -1,4 +1,4 @@
-#![no_std]
+#![cfg_attr(not(feature = "std"), no_std)]
 
 //! Alternative futures adapters that are more cancellation-aware.
 //!
@@ -6,7 +6,7 @@
 //!
 //! This crate solves a few related but distinct problems:
 //!
-//! ## Cancel-safe futures adapters
+//! ## 1. Cancel-safe futures adapters
 //!
 //! The [`futures`](https://docs.rs/futures/latest/futures/) library contains many adapters that
 //! make writing asynchronous Rust code more pleasant. However, some of those combinators make it
@@ -57,7 +57,7 @@
 //! # Ok(()) }
 //! ```
 //!
-//! ## `then_try` adapters that don't perform cancellations
+//! ## 2. `then_try` adapters that don't perform cancellations
 //!
 //! The futures and tokio libraries come with a number of `try_` adapters and macros, for example
 //! [`tokio::try_join!`]. These adapters have the property that if one of the futures under
@@ -80,7 +80,15 @@
 //!
 //! For a detailed example, see the documentation for the [`join_then_try`] macro.
 //!
-//! ## Cooperative cancellation
+//! ## 3. Cancel-safe mutexes
+//!
+//! The [`tokio::sync::Mutex`] shipped with Tokio has resulted in many bugs in practice,
+//! particularly around cancellations.
+//!
+//! This crate provides an alternative mutex API, called [`RobustMutex`](sync::RobustMutex), that does not
+//! have those pitfalls. For more, see the documentation for [`RobustMutex`](sync::RobustMutex).
+//!
+//! ## 4. Cooperative cancellation
 //!
 //! Executors like Tokio support forcible cancellation for async tasks via facilities like
 //! [`tokio::task::JoinHandle::abort`]. However, this can cause cancellations at any arbitrary await
@@ -106,6 +114,7 @@
 //! * `std` (enabled by default): Enables items that depend on `std`, including items that depend on
 //!   `alloc`.
 //! * `alloc` (enabled by default): Enables items that depend on `alloc`.
+//! * `parking_lot`: Switches to `parking_lot`'s mutexes.
 //!
 //! No-std users must turn off default features while importing this crate.
 
@@ -130,6 +139,7 @@ pub mod prelude;
 pub mod sink;
 pub mod stream;
 mod support;
+pub mod sync;
 
 pub use sink::SinkExt;
 pub use stream::TryStreamExt;

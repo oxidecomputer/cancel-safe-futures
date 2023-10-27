@@ -58,6 +58,24 @@ jobs:
         if: matrix.rust-version == 'stable'
         run: ./scripts/commands.sh doctest
 
+  miri:
+    name: Miri
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        rust-version: [nightly]
+      fail-fast: false
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ matrix.rust-version }}
+          components: miri
+      - uses: Swatinem/rust-cache@v2
+      - uses: taiki-e/install-action@nextest
+      - name: Run miri
+        run: ./scripts/commands.sh miri
+
   no-std:
     name: Build no_std for ${{ matrix.target }}
     runs-on: ubuntu-latest
