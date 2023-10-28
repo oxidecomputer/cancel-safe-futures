@@ -1,0 +1,73 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Waits on multiple concurrent branches for all futures to complete, returning Ok(_) or an error."><title>join_then_try in cancel_safe_futures - Rust</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../static.files/SourceSerif4-Bold-a2c9cd1067f8b328.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../static.files/rustdoc-cb6f1f67f1bcd037.css" id="mainThemeStyle"><meta name="rustdoc-vars" data-root-path="../" data-static-root-path="../static.files/" data-current-crate="cancel_safe_futures" data-themes="" data-resource-suffix="" data-rustdoc-version="1.73.0 (cc66ad468 2023-10-03)" data-channel="1.73.0" data-search-js="search-6dfdfced5eff6596.js" data-settings-js="settings-de11bff964e9d4e5.js" data-settings-css="settings-8c76f75bfb6bd192.css" data-theme-light-css="light-1596385f77d47ef2.css" data-theme-dark-css="dark-0a43001d3fc2282c.css" data-theme-ayu-css="ayu-fd19013d6ce078bf.css" ><script src="../static.files/storage-db41da1a38ea3cb8.js"></script><script defer src="sidebar-items.js"></script><script defer src="../static.files/main-0795b7d26be81095.js"></script><noscript><link rel="stylesheet" media="(prefers-color-scheme:light)" href="../static.files/light-1596385f77d47ef2.css"><link rel="stylesheet" media="(prefers-color-scheme:dark)" href="../static.files/dark-0a43001d3fc2282c.css"><link rel="stylesheet" href="../static.files/noscript-cffde32267a19fd6.css"></noscript><link rel="alternate icon" type="image/png" href="../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc macro"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="mobile-topbar"><button class="sidebar-menu-toggle">&#9776;</button><a class="logo-container" href="../cancel_safe_futures/index.html"><img class="rust-logo" src="../static.files/rust-logo-151179464ae7ed46.svg" alt="logo"></a><h2></h2></nav><nav class="sidebar"><a class="logo-container" href="../cancel_safe_futures/index.html"><img class="rust-logo" src="../static.files/rust-logo-151179464ae7ed46.svg" alt="logo"></a><div class="sidebar-elems"><h2><a href="index.html">In cancel_safe_futures</a></h2></div></nav><main><div class="width-limiter"><nav class="sub"><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="main-heading"><h1>Macro <a href="index.html">cancel_safe_futures</a>::<wbr><a class="macro" href="#">join_then_try</a><button id="copy-path" title="Copy item path to clipboard"><img src="../static.files/clipboard-7571035ce49a181d.svg" width="19" height="18" alt="Copy item path"></button></h1><span class="out-of-band"><a class="src" href="../src/cancel_safe_futures/macros/join_then_try.rs.html#93-206">source</a> · <button id="toggle-all-docs" title="collapse all docs">[<span>&#x2212;</span>]</button></span></div><pre class="rust item-decl"><span class="macro">macro_rules! </span>join_then_try {
+    (@ {
+        <span class="comment">// One `_` for each branch in the `join_then_try!` macro. This is not used once
+        // normalization is complete.
+        </span>( $(<span class="macro-nonterminal">$count</span>:tt)* )
+
+        <span class="comment">// The expression `0+1+1+ ... +1` equal to the number of branches.
+        </span>( $(<span class="macro-nonterminal">$total</span>:tt)* )
+
+        <span class="comment">// Normalized join_then_try! branches
+        </span>$( ( $(<span class="macro-nonterminal">$skip</span>:tt)* ) <span class="macro-nonterminal">$e</span>:expr, )*
+
+    }) =&gt; { ... };
+    (@ { ( $(<span class="macro-nonterminal">$s</span>:tt)* ) ( $(<span class="macro-nonterminal">$n</span>:tt)* ) $(<span class="macro-nonterminal">$t</span>:tt)* } <span class="macro-nonterminal">$e</span>:expr, $(<span class="macro-nonterminal">$r</span>:tt)* ) =&gt; { ... };
+    ( $(<span class="macro-nonterminal">$e</span>:expr),+ $(,)<span class="question-mark">?</span>) =&gt; { ... };
+    () =&gt; { ... };
+}</pre><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>Waits on multiple concurrent branches for <strong>all</strong> futures to complete, returning Ok(_) or an
+error.</p>
+<p>Unlike <a href="../tokio/macro.try_join.html" title="macro tokio::try_join"><code>tokio::try_join</code></a>, this macro does not cancel remaining futures if one of them returns
+an error. Instead, this macro runs all futures to completion.</p>
+<p>If more than one future produces an error, <code>join_then_try!</code> returns the error from the first
+future listed in the macro that produces an error.</p>
+<p>The <code>join_then_try!</code> macro must be used inside of async functions, closures, and blocks.</p>
+<h2 id="why-use-join_then_try"><a href="#why-use-join_then_try">Why use <code>join_then_try</code>?</a></h2>
+<p>Consider what happens if you’re wrapping a set of
+<a href="../tokio/io/util/async_write_ext/trait.AsyncWriteExt.html#method.flush" title="method tokio::io::util::async_write_ext::AsyncWriteExt::flush"><code>AsyncWriteExt::flush</code></a> operations.</p>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>tokio::io::AsyncWriteExt;
+
+<span class="kw">let </span>temp_dir = tempfile::tempdir()<span class="question-mark">?</span>;
+<span class="kw">let </span><span class="kw-2">mut </span>file1 = tokio::fs::File::create(temp_dir.path().join(<span class="string">&quot;file1&quot;</span>)).<span class="kw">await</span><span class="question-mark">?</span>;
+<span class="kw">let </span><span class="kw-2">mut </span>file2 = tokio::fs::File::create(temp_dir.path().join(<span class="string">&quot;file2&quot;</span>)).<span class="kw">await</span><span class="question-mark">?</span>;
+
+<span class="comment">// ... write some data to file1 and file2
+
+</span><span class="macro">tokio::try_join!</span>(file1.flush(), file2.flush())<span class="question-mark">?</span>;
+</code></pre></div>
+<p>If <code>file1.flush()</code> returns an error, <code>file2.flush()</code> will be cancelled. This is not ideal, since
+we’d like to make an effort to flush both files as far as possible.</p>
+<p>One way to run all futures to completion is to use the <a href="../tokio/macro.join.html" title="macro tokio::join"><code>tokio::join</code></a> macro.</p>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">let </span><span class="kw-2">mut </span>file1 = tokio::fs::File::create(temp_dir.path().join(<span class="string">&quot;file1&quot;</span>)).<span class="kw">await</span><span class="question-mark">?</span>;
+<span class="kw">let </span><span class="kw-2">mut </span>file2 = tokio::fs::File::create(temp_dir.path().join(<span class="string">&quot;file2&quot;</span>)).<span class="kw">await</span><span class="question-mark">?</span>;
+
+<span class="comment">// tokio::join! is unaware of errors and runs all futures to completion.
+</span><span class="kw">let </span>(res1, res2) = <span class="macro">tokio::join!</span>(file1.flush(), file2.flush());
+res1<span class="question-mark">?</span>;
+res2<span class="question-mark">?</span>;</code></pre></div>
+<p>This, too, is not ideal because it requires you to manually handle the results of each future.</p>
+<p>The <code>join_then_try</code> macro behaves identically to the above <code>tokio::join</code> example, except it is
+more user-friendly.</p>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">let </span><span class="kw-2">mut </span>file1 = tokio::fs::File::create(temp_dir.path().join(<span class="string">&quot;file1&quot;</span>)).<span class="kw">await</span><span class="question-mark">?</span>;
+<span class="kw">let </span><span class="kw-2">mut </span>file2 = tokio::fs::File::create(temp_dir.path().join(<span class="string">&quot;file2&quot;</span>)).<span class="kw">await</span><span class="question-mark">?</span>;
+
+<span class="comment">// With join_then_try, if one of the operations errors out the other one will still be
+// run to completion.
+</span><span class="macro">cancel_safe_futures::join_then_try!</span>(file1.flush(), file2.flush())<span class="question-mark">?</span>;</code></pre></div>
+<p>If an error occurs, the error from the first future listed in the macro that errors out will be
+returned.</p>
+<h2 id="notes"><a href="#notes">Notes</a></h2>
+<p>The supplied futures are stored inline. This macro is no-std and no-alloc compatible and does
+not require allocating a <code>Vec</code>.</p>
+<p>This adapter does not expose a way to gather and combine all returned errors. Implementing that
+is a future goal, but it requires some design work for a generic way to combine errors. To
+do that today, use <a href="../tokio/macro.join.html" title="macro tokio::join"><code>tokio::join</code></a> and combine errors at the end.</p>
+<h2 id="runtime-characteristics"><a href="#runtime-characteristics">Runtime characteristics</a></h2>
+<p>By running all async expressions on the current task, the expressions are able to run
+<strong>concurrently</strong> but not in <strong>parallel</strong>. This means all expressions are run on the same thread
+and if one branch blocks the thread, all other expressions will be unable to continue. If
+parallelism is required, spawn each async expression using <a href="../tokio/task/spawn/fn.spawn.html" title="fn tokio::task::spawn::spawn"><code>tokio::task::spawn</code></a> and pass the
+join handle to <code>join_then_try!</code>.</p>
+</div></details></section></div></main></body></html>
