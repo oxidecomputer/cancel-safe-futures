@@ -468,6 +468,23 @@ impl<T: ?Sized> RobustMutex<T> {
     }
 }
 
+impl<T> Default for RobustMutex<T>
+where
+    T: Default,
+{
+    #[inline]
+    fn default() -> Self {
+        Self::new(Default::default())
+    }
+}
+
+impl<T> From<T> for RobustMutex<T> {
+    #[inline]
+    fn from(t: T) -> Self {
+        Self::new(t)
+    }
+}
+
 impl<T: ?Sized + fmt::Debug> fmt::Debug for RobustMutex<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut d = f.debug_struct("RobustMutex");
