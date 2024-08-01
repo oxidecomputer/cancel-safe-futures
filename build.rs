@@ -17,6 +17,7 @@ use std::env;
 include!("no_atomic_cas.rs");
 
 fn main() {
+    // testing
     let target = match env::var("TARGET") {
         Ok(target) => target,
         Err(e) => {
