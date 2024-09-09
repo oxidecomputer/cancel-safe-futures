@@ -4,13 +4,9 @@ use cancel_safe_futures::future::join_all_then_try;
 use futures_util::future::{err, ok};
 use std::future::Future;
 use tokio::sync::oneshot;
-#[cfg(not(tokio_wasm_not_wasi))]
-use tokio::test as maybe_tokio_test;
 use tokio_test::{assert_pending, assert_ready, task};
-#[cfg(tokio_wasm_not_wasi)]
-use wasm_bindgen_test::wasm_bindgen_test as maybe_tokio_test;
 
-#[maybe_tokio_test]
+#[tokio::test]
 async fn basic() {
     assert_eq!(
         join_all_then_try(vec![ok(1), ok(2)]).await,
@@ -19,7 +15,7 @@ async fn basic() {
     assert_eq!(join_all_then_try(vec![ok(1), err(2)]).await, Err(2));
 }
 
-#[maybe_tokio_test]
+#[tokio::test]
 async fn iter_lifetime() {
     // In futures-rs version 0.1, this function would fail to typecheck due to an overly
     // conservative type parameterization of `TryJoinAll`.
@@ -34,7 +30,7 @@ async fn iter_lifetime() {
     );
 }
 
-#[maybe_tokio_test]
+#[tokio::test]
 async fn err_no_abort_early() {
     // Run this test for several sizes of vectors, since the implementation is different depending
     // on the length of the input vector (the implementation changes at 30 elements).

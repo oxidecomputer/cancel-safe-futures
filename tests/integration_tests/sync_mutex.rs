@@ -110,6 +110,7 @@ async fn aborted_future_2() {
 #[tokio::test]
 async fn cancelled_perform_async() {
     #[derive(Debug)]
+    #[allow(dead_code)]
     struct Foo(u32);
 
     let m1: Arc<RobustMutex<Foo>> = Arc::new(RobustMutex::new(Foo(0)));
@@ -131,6 +132,7 @@ async fn cancelled_perform_async() {
 #[tokio::test]
 async fn cancelled_perform_async_local() {
     #[derive(Debug)]
+    #[allow(dead_code)]
     struct Foo(u32);
 
     let m1: Arc<RobustMutex<Foo>> = Arc::new(RobustMutex::new(Foo(0)));

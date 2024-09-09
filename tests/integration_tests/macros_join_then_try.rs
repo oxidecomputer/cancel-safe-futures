@@ -3,41 +3,37 @@
 
 use std::sync::Arc;
 use tokio::sync::{oneshot, Semaphore};
-#[cfg(not(tokio_wasm_not_wasi))]
-use tokio::test as maybe_tokio_test;
 use tokio_test::{assert_pending, assert_ready, task};
-#[cfg(tokio_wasm_not_wasi)]
-use wasm_bindgen_test::wasm_bindgen_test as maybe_tokio_test;
 
-#[maybe_tokio_test]
+#[tokio::test]
 async fn sync_one_lit_expr_comma() {
     let foo = cancel_safe_futures::join_then_try!(async { ok(1) },);
 
     assert_eq!(foo, Ok((1,)));
 }
 
-#[maybe_tokio_test]
+#[tokio::test]
 async fn sync_one_lit_expr_no_comma() {
     let foo = cancel_safe_futures::join_then_try!(async { ok(1) });
 
     assert_eq!(foo, Ok((1,)));
 }
 
-#[maybe_tokio_test]
+#[tokio::test]
 async fn sync_two_lit_expr_comma() {
     let foo = cancel_safe_futures::join_then_try!(async { ok(1) }, async { ok(2) },);
 
     assert_eq!(foo, Ok((1, 2)));
 }
 
-#[maybe_tokio_test]
+#[tokio::test]
 async fn sync_two_lit_expr_no_comma() {
     let foo = cancel_safe_futures::join_then_try!(async { ok(1) }, async { ok(2) });
 
     assert_eq!(foo, Ok((1, 2)));
 }
 
-#[maybe_tokio_test]
+#[tokio::test]
 async fn two_await() {
     let (tx1, rx1) = oneshot::channel::<&str>();
     let (tx2, rx2) = oneshot::channel::<u32>();
@@ -57,7 +53,7 @@ async fn two_await() {
     assert_eq!(Ok(("hello", 123)), res);
 }
 
-#[maybe_tokio_test]
+#[tokio::test]
 async fn err_no_abort_early() {
     let (tx1, rx1) = oneshot::channel::<&str>();
     let (tx2, rx2) = oneshot::channel::<u32>();
