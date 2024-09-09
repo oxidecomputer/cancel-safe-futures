@@ -119,7 +119,7 @@
 //! No-std users must turn off default features while importing this crate.
 
 #![warn(missing_docs)]
-#![cfg_attr(doc_cfg, feature(doc_cfg, doc_auto_cfg))]
+#![cfg_attr(doc_cfg, feature(doc_cfg))]
 
 #[cfg(feature = "alloc")]
 extern crate alloc;
