@@ -1,0 +1,115 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Alternative adapters for `Result`-returning streams"><title>TryStreamExt in cancel_safe_futures::stream - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-46f98efaafac5295.ttf.woff2,FiraSans-Regular-018c141bf0843ffd.woff2,FiraSans-Medium-8f9a781e4970d388.woff2,SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2,SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-c5d6553a23f1e5a6.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="cancel_safe_futures" data-themes="" data-resource-suffix="" data-rustdoc-version="1.81.0 (eeb90cda1 2024-09-04)" data-channel="1.81.0" data-search-js="search-d234aafac6c221dd.js" data-settings-js="settings-4313503d2e1961c2.js" ><script src="../../static.files/storage-118b08c4c78b968e.js"></script><script defer src="sidebar-items.js"></script><script defer src="../../static.files/main-d2fab2bf619172d3.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-df360f571f6edeae.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc trait"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="mobile-topbar"><button class="sidebar-menu-toggle" title="show sidebar"></button></nav><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../../cancel_safe_futures/index.html">cancel_safe_futures</a><span class="version">0.1.5</span></h2></div><h2 class="location"><a href="#">TryStreamExt</a></h2><div class="sidebar-elems"><section><h3><a href="#provided-methods">Provided Methods</a></h3><ul class="block"><li><a href="#method.collect_then_try">collect_then_try</a></li><li><a href="#method.for_each_concurrent_then_try">for_each_concurrent_then_try</a></li></ul><h3><a href="#implementors">Implementors</a></h3></section><h2><a href="index.html">In cancel_safe_futures::stream</a></h2></div></nav><div class="sidebar-resizer"></div><main><div class="width-limiter"><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><h1>Trait <a href="../index.html">cancel_safe_futures</a>::<wbr><a href="index.html">stream</a>::<wbr><a class="trait" href="#">TryStreamExt</a><button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><span class="out-of-band"><a class="src" href="../../src/cancel_safe_futures/stream/try_stream.rs.html#8-143">source</a> · <button id="toggle-all-docs" title="collapse all docs">[<span>&#x2212;</span>]</button></span></div><pre class="rust item-decl"><code>pub trait TryStreamExt: <a class="trait" href="../../futures_core/stream/trait.TryStream.html" title="trait futures_core::stream::TryStream">TryStream</a> {
+    // Provided methods
+    fn <a href="#method.for_each_concurrent_then_try" class="fn">for_each_concurrent_then_try</a>&lt;Fut, F&gt;(
+        self,
+        limit: impl <a class="trait" href="https://doc.rust-lang.org/1.81.0/core/convert/trait.Into.html" title="trait core::convert::Into">Into</a>&lt;<a class="enum" href="https://doc.rust-lang.org/1.81.0/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.81.0/std/primitive.usize.html">usize</a>&gt;&gt;,
+        f: F,
+    ) -&gt; <a class="struct" href="struct.ForEachConcurrentThenTry.html" title="struct cancel_safe_futures::stream::ForEachConcurrentThenTry">ForEachConcurrentThenTry</a>&lt;Self, Fut, F&gt; <a href="#" class="tooltip" data-notable-ty="ForEachConcurrentThenTry&lt;Self, Fut, F&gt;">ⓘ</a>
+       <span class="where">where F: <a class="trait" href="https://doc.rust-lang.org/1.81.0/core/ops/function/trait.FnMut.html" title="trait core::ops::function::FnMut">FnMut</a>(Self::<a class="associatedtype" href="../../futures_core/stream/trait.TryStream.html#associatedtype.Ok" title="type futures_core::stream::TryStream::Ok">Ok</a>) -&gt; Fut,
+             Fut: <a class="trait" href="https://doc.rust-lang.org/1.81.0/core/future/future/trait.Future.html" title="trait core::future::future::Future">Future</a>&lt;Output = <a class="enum" href="https://doc.rust-lang.org/1.81.0/core/result/enum.Result.html" title="enum core::result::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.81.0/std/primitive.unit.html">()</a>, Self::<a class="associatedtype" href="../../futures_core/stream/trait.TryStream.html#associatedtype.Error" title="type futures_core::stream::TryStream::Error">Error</a>&gt;&gt;,
+             Self: <a class="trait" href="https://doc.rust-lang.org/1.81.0/core/marker/trait.Sized.html" title="trait core::marker::Sized">Sized</a></span> { ... }
+<span class="item-spacer"></span>    fn <a href="#method.collect_then_try" class="fn">collect_then_try</a>&lt;C: <a class="trait" href="https://doc.rust-lang.org/1.81.0/core/default/trait.Default.html" title="trait core::default::Default">Default</a> + <a class="trait" href="https://doc.rust-lang.org/1.81.0/core/iter/traits/collect/trait.Extend.html" title="trait core::iter::traits::collect::Extend">Extend</a>&lt;Self::<a class="associatedtype" href="../../futures_core/stream/trait.TryStream.html#associatedtype.Ok" title="type futures_core::stream::TryStream::Ok">Ok</a>&gt;&gt;(
+        self,
+    ) -&gt; <a class="struct" href="struct.CollectThenTry.html" title="struct cancel_safe_futures::stream::CollectThenTry">CollectThenTry</a>&lt;Self, C&gt; <a href="#" class="tooltip" data-notable-ty="CollectThenTry&lt;Self, C&gt;">ⓘ</a>
+       <span class="where">where Self: <a class="trait" href="https://doc.rust-lang.org/1.81.0/core/marker/trait.Sized.html" title="trait core::marker::Sized">Sized</a></span> { ... }
+}</code></pre><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>Alternative adapters for <code>Result</code>-returning streams</p>
+</div></details><h2 id="provided-methods" class="section-header">Provided Methods<a href="#provided-methods" class="anchor">§</a></h2><div class="methods"><details class="toggle method-toggle" open><summary><section id="method.for_each_concurrent_then_try" class="method"><a class="src rightside" href="../../src/cancel_safe_futures/stream/try_stream.rs.html#65-80">source</a><h4 class="code-header">fn <a href="#method.for_each_concurrent_then_try" class="fn">for_each_concurrent_then_try</a>&lt;Fut, F&gt;(
+    self,
+    limit: impl <a class="trait" href="https://doc.rust-lang.org/1.81.0/core/convert/trait.Into.html" title="trait core::convert::Into">Into</a>&lt;<a class="enum" href="https://doc.rust-lang.org/1.81.0/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.81.0/std/primitive.usize.html">usize</a>&gt;&gt;,
+    f: F,
+) -&gt; <a class="struct" href="struct.ForEachConcurrentThenTry.html" title="struct cancel_safe_futures::stream::ForEachConcurrentThenTry">ForEachConcurrentThenTry</a>&lt;Self, Fut, F&gt; <a href="#" class="tooltip" data-notable-ty="ForEachConcurrentThenTry&lt;Self, Fut, F&gt;">ⓘ</a><div class="where">where
+    F: <a class="trait" href="https://doc.rust-lang.org/1.81.0/core/ops/function/trait.FnMut.html" title="trait core::ops::function::FnMut">FnMut</a>(Self::<a class="associatedtype" href="../../futures_core/stream/trait.TryStream.html#associatedtype.Ok" title="type futures_core::stream::TryStream::Ok">Ok</a>) -&gt; Fut,
+    Fut: <a class="trait" href="https://doc.rust-lang.org/1.81.0/core/future/future/trait.Future.html" title="trait core::future::future::Future">Future</a>&lt;Output = <a class="enum" href="https://doc.rust-lang.org/1.81.0/core/result/enum.Result.html" title="enum core::result::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.81.0/std/primitive.unit.html">()</a>, Self::<a class="associatedtype" href="../../futures_core/stream/trait.TryStream.html#associatedtype.Error" title="type futures_core::stream::TryStream::Error">Error</a>&gt;&gt;,
+    Self: <a class="trait" href="https://doc.rust-lang.org/1.81.0/core/marker/trait.Sized.html" title="trait core::marker::Sized">Sized</a>,</div></h4></section><span class="item-info"><div class="stab portability">Available on <strong>non-<code>futures_no_atomic_cas</code> and crate feature <code>alloc</code></strong> only.</div></span></summary><div class="docblock"><p>Attempts to run this stream to completion, executing the provided asynchronous closure for
+each element on the stream concurrently as elements become available. Runs the stream to
+completion, then exits with:</p>
+<ul>
+<li><code>Ok(())</code> if all elements were processed successfully.</li>
+<li><code>Err(error)</code> if an error occurred while processing an element. The first error encountered
+is cached and returned.</li>
+</ul>
+<p>This is similar to
+<a href="../../futures_util/stream/try_stream/trait.TryStreamExt.html#method.try_for_each_concurrent" title="method futures_util::stream::try_stream::TryStreamExt::try_for_each_concurrent"><code>try_for_each_concurrent</code></a>,
+but will continue running the stream to completion even if an error is encountered.</p>
+<p>This method is only available when the <code>std</code> or <code>alloc</code> feature of this library is
+activated, and it is activated by default.</p>
+<h5 id="examples"><a class="doc-anchor" href="#examples">§</a>Examples</h5>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>cancel_safe_futures::stream::TryStreamExt;
+<span class="kw">use </span>tokio::sync::oneshot;
+<span class="kw">use </span>futures_util::{stream, FutureExt, StreamExt};
+
+<span class="kw">let </span>(tx1, rx1) = oneshot::channel();
+<span class="kw">let </span>(tx2, rx2) = oneshot::channel();
+<span class="kw">let </span>(tx3, rx3) = oneshot::channel();
+
+<span class="kw">let </span>stream = stream::iter(<span class="macro">vec!</span>[rx1, rx2, rx3]);
+<span class="kw">let </span>fut = stream.map(<span class="prelude-val">Ok</span>).for_each_concurrent_then_try(
+    <span class="comment">/* limit */ </span><span class="number">2</span>,
+    |rx| <span class="kw">async move </span>{
+        <span class="kw">let </span>res: <span class="prelude-ty">Result</span>&lt;(), oneshot::error::RecvError&gt; = rx.<span class="kw">await</span>;
+        res
+    }
+);
+
+tx1.send(()).unwrap();
+<span class="comment">// Drop the second sender so that `rx2` resolves to `Canceled`.
+</span>drop(tx2);
+
+<span class="comment">// Unlike `try_for_each_concurrent`, tx3 also needs to be resolved
+// before the future will finish execution. This causes `now_or_never` to
+// return None.
+</span><span class="kw">let </span><span class="kw-2">mut </span>fut = <span class="macro">std::pin::pin!</span>(fut);
+<span class="macro">assert_eq!</span>(fut.as_mut().now_or_never(), <span class="prelude-val">None</span>);
+
+tx3.send(()).unwrap();
+
+<span class="comment">// The final result is an error because the second future
+// resulted in an error.
+</span>fut.<span class="kw">await</span>.unwrap_err();</code></pre></div>
+</div></details><details class="toggle method-toggle" open><summary><section id="method.collect_then_try" class="method"><a class="src rightside" href="../../src/cancel_safe_futures/stream/try_stream.rs.html#137-142">source</a><h4 class="code-header">fn <a href="#method.collect_then_try" class="fn">collect_then_try</a>&lt;C: <a class="trait" href="https://doc.rust-lang.org/1.81.0/core/default/trait.Default.html" title="trait core::default::Default">Default</a> + <a class="trait" href="https://doc.rust-lang.org/1.81.0/core/iter/traits/collect/trait.Extend.html" title="trait core::iter::traits::collect::Extend">Extend</a>&lt;Self::<a class="associatedtype" href="../../futures_core/stream/trait.TryStream.html#associatedtype.Ok" title="type futures_core::stream::TryStream::Ok">Ok</a>&gt;&gt;(
+    self,
+) -&gt; <a class="struct" href="struct.CollectThenTry.html" title="struct cancel_safe_futures::stream::CollectThenTry">CollectThenTry</a>&lt;Self, C&gt; <a href="#" class="tooltip" data-notable-ty="CollectThenTry&lt;Self, C&gt;">ⓘ</a><div class="where">where
+    Self: <a class="trait" href="https://doc.rust-lang.org/1.81.0/core/marker/trait.Sized.html" title="trait core::marker::Sized">Sized</a>,</div></h4></section></summary><div class="docblock"><p>Attempt to transform a stream into a collection, returning a future representing the result
+of that computation.</p>
+<p>This adapter will collect all successful results of this stream and collect them into the
+specified collection type. Unlike
+<a href="../../futures_util/stream/try_stream/trait.TryStreamExt.html#method.try_collect" title="method futures_util::stream::try_stream::TryStreamExt::try_collect"><code>try_collect</code></a>, if an error happens then the
+stream will still be run to completion.</p>
+<p>If more than one error is produced, this adapter will return the first error encountered.</p>
+<p>The returned future will be resolved when the stream terminates.</p>
+<h5 id="notes"><a class="doc-anchor" href="#notes">§</a>Notes</h5>
+<p>This adapter does not expose a way to gather and combine all returned errors. Implementing that
+is a future goal, but it requires some design work for a generic way to combine errors. To
+do that today, use <a href="../../futures_util/stream/stream/trait.StreamExt.html#method.collect" title="method futures_util::stream::stream::StreamExt::collect"><code>futures::StreamExt::collect</code></a> and combine errors at the end.</p>
+<h5 id="examples-1"><a class="doc-anchor" href="#examples-1">§</a>Examples</h5>
+<p>This example uses the <a href="https://docs.rs/async-stream"><code>async-stream</code></a> crate to create a
+stream with interspersed <code>Ok</code> and <code>Err</code> values.</p>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>cancel_safe_futures::stream::TryStreamExt;
+<span class="kw">use </span>std::sync::atomic::{AtomicBool, Ordering};
+
+<span class="kw">let </span>end_of_stream = AtomicBool::new(<span class="bool-val">false</span>);
+<span class="kw">let </span>end_ref = <span class="kw-2">&amp;</span>end_of_stream;
+
+<span class="comment">// This stream generates interspersed Ok and Err values.
+</span><span class="kw">let </span>stream = <span class="macro">async_stream::stream!</span> {
+    <span class="kw">for </span>i <span class="kw">in </span><span class="number">1</span>..=<span class="number">4 </span>{
+        <span class="kw">yield </span><span class="prelude-val">Ok</span>(i);
+    }
+    <span class="kw">yield </span><span class="prelude-val">Err</span>(<span class="number">5</span>);
+    <span class="kw">for </span>i <span class="kw">in </span><span class="number">6</span>..=<span class="number">9 </span>{
+        <span class="kw">yield </span><span class="prelude-val">Ok</span>(i);
+    }
+    <span class="kw">yield </span><span class="prelude-val">Err</span>(<span class="number">10</span>);
+
+    end_ref.store(<span class="bool-val">true</span>, Ordering::SeqCst);
+};
+
+<span class="kw">let </span>output: <span class="prelude-ty">Result</span>&lt;Vec&lt;i32&gt;, i32&gt; = stream.collect_then_try().<span class="kw">await</span>;
+
+<span class="comment">// The first error encountered is returned.
+</span><span class="macro">assert_eq!</span>(output, <span class="prelude-val">Err</span>(<span class="number">5</span>));
+
+<span class="comment">// The stream is still run to completion even though it errored out in the middle.
+</span><span class="macro">assert!</span>(end_of_stream.load(Ordering::SeqCst));</code></pre></div>
+</div></details></div><h2 id="implementors" class="section-header">Implementors<a href="#implementors" class="anchor">§</a></h2><div id="implementors-list"><section id="impl-TryStreamExt-for-S" class="impl"><a class="src rightside" href="../../src/cancel_safe_futures/stream/try_stream.rs.html#5">source</a><a href="#impl-TryStreamExt-for-S" class="anchor">§</a><h3 class="code-header">impl&lt;S: ?<a class="trait" href="https://doc.rust-lang.org/1.81.0/core/marker/trait.Sized.html" title="trait core::marker::Sized">Sized</a> + <a class="trait" href="../../futures_core/stream/trait.TryStream.html" title="trait futures_core::stream::TryStream">TryStream</a>&gt; <a class="trait" href="trait.TryStreamExt.html" title="trait cancel_safe_futures::stream::TryStreamExt">TryStreamExt</a> for S</h3></section></div><script src="../../trait.impl/cancel_safe_futures/stream/try_stream/trait.TryStreamExt.js" async></script><script type="text/json" id="notable-traits-data">{"CollectThenTry<Self, C>":"<h3>Notable traits for <code><a class=\"struct\" href=\"struct.CollectThenTry.html\" title=\"struct cancel_safe_futures::stream::CollectThenTry\">CollectThenTry</a>&lt;St, C&gt;</code></h3><pre><code><div class=\"where\">impl&lt;St, C&gt; <a class=\"trait\" href=\"https://doc.rust-lang.org/1.81.0/core/future/future/trait.Future.html\" title=\"trait core::future::future::Future\">Future</a> for <a class=\"struct\" href=\"struct.CollectThenTry.html\" title=\"struct cancel_safe_futures::stream::CollectThenTry\">CollectThenTry</a>&lt;St, C&gt;<div class=\"where\">where\n    St: <a class=\"trait\" href=\"../../futures_core/stream/trait.TryStream.html\" title=\"trait futures_core::stream::TryStream\">TryStream</a>,\n    C: <a class=\"trait\" href=\"https://doc.rust-lang.org/1.81.0/core/default/trait.Default.html\" title=\"trait core::default::Default\">Default</a> + <a class=\"trait\" href=\"https://doc.rust-lang.org/1.81.0/core/iter/traits/collect/trait.Extend.html\" title=\"trait core::iter::traits::collect::Extend\">Extend</a>&lt;St::<a class=\"associatedtype\" href=\"../../futures_core/stream/trait.TryStream.html#associatedtype.Ok\" title=\"type futures_core::stream::TryStream::Ok\">Ok</a>&gt;,</div></div><div class=\"where\">    type <a href=\"https://doc.rust-lang.org/1.81.0/core/future/future/trait.Future.html#associatedtype.Output\" class=\"associatedtype\">Output</a> = <a class=\"enum\" href=\"https://doc.rust-lang.org/1.81.0/core/result/enum.Result.html\" title=\"enum core::result::Result\">Result</a>&lt;C, St::<a class=\"associatedtype\" href=\"../../futures_core/stream/trait.TryStream.html#associatedtype.Error\" title=\"type futures_core::stream::TryStream::Error\">Error</a>&gt;;</div>","ForEachConcurrentThenTry<Self, Fut, F>":"<h3>Notable traits for <code><a class=\"struct\" href=\"struct.ForEachConcurrentThenTry.html\" title=\"struct cancel_safe_futures::stream::ForEachConcurrentThenTry\">ForEachConcurrentThenTry</a>&lt;St, Fut, F&gt;</code></h3><pre><code><div class=\"where\">impl&lt;St, Fut, F&gt; <a class=\"trait\" href=\"https://doc.rust-lang.org/1.81.0/core/future/future/trait.Future.html\" title=\"trait core::future::future::Future\">Future</a> for <a class=\"struct\" href=\"struct.ForEachConcurrentThenTry.html\" title=\"struct cancel_safe_futures::stream::ForEachConcurrentThenTry\">ForEachConcurrentThenTry</a>&lt;St, Fut, F&gt;<div class=\"where\">where\n    St: <a class=\"trait\" href=\"../../futures_core/stream/trait.TryStream.html\" title=\"trait futures_core::stream::TryStream\">TryStream</a>,\n    F: <a class=\"trait\" href=\"https://doc.rust-lang.org/1.81.0/core/ops/function/trait.FnMut.html\" title=\"trait core::ops::function::FnMut\">FnMut</a>(St::<a class=\"associatedtype\" href=\"../../futures_core/stream/trait.TryStream.html#associatedtype.Ok\" title=\"type futures_core::stream::TryStream::Ok\">Ok</a>) -&gt; Fut,\n    Fut: <a class=\"trait\" href=\"https://doc.rust-lang.org/1.81.0/core/future/future/trait.Future.html\" title=\"trait core::future::future::Future\">Future</a>&lt;Output = <a class=\"enum\" href=\"https://doc.rust-lang.org/1.81.0/core/result/enum.Result.html\" title=\"enum core::result::Result\">Result</a>&lt;<a class=\"primitive\" href=\"https://doc.rust-lang.org/1.81.0/std/primitive.unit.html\">()</a>, St::<a class=\"associatedtype\" href=\"../../futures_core/stream/trait.TryStream.html#associatedtype.Error\" title=\"type futures_core::stream::TryStream::Error\">Error</a>&gt;&gt;,</div></div><div class=\"where\">    type <a href=\"https://doc.rust-lang.org/1.81.0/core/future/future/trait.Future.html#associatedtype.Output\" class=\"associatedtype\">Output</a> = <a class=\"enum\" href=\"https://doc.rust-lang.org/1.81.0/core/result/enum.Result.html\" title=\"enum core::result::Result\">Result</a>&lt;<a class=\"primitive\" href=\"https://doc.rust-lang.org/1.81.0/std/primitive.unit.html\">()</a>, St::<a class=\"associatedtype\" href=\"../../futures_core/stream/trait.TryStream.html#associatedtype.Error\" title=\"type futures_core::stream::TryStream::Error\">Error</a>&gt;;</div>"}</script></section></div></main></body></html>

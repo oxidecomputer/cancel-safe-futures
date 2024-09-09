@@ -1,0 +1,81 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="A multi-producer, single-consumer channel for cooperative (explicit) cancellation."><title>cancel_safe_futures::coop_cancel - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-46f98efaafac5295.ttf.woff2,FiraSans-Regular-018c141bf0843ffd.woff2,FiraSans-Medium-8f9a781e4970d388.woff2,SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2,SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../static.files/rustdoc-c5d6553a23f1e5a6.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="cancel_safe_futures" data-themes="" data-resource-suffix="" data-rustdoc-version="1.81.0 (eeb90cda1 2024-09-04)" data-channel="1.81.0" data-search-js="search-d234aafac6c221dd.js" data-settings-js="settings-4313503d2e1961c2.js" ><script src="../../static.files/storage-118b08c4c78b968e.js"></script><script defer src="../sidebar-items.js"></script><script defer src="../../static.files/main-d2fab2bf619172d3.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-df360f571f6edeae.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc mod"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="mobile-topbar"><button class="sidebar-menu-toggle" title="show sidebar"></button></nav><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../../cancel_safe_futures/index.html">cancel_safe_futures</a><span class="version">0.1.5</span></h2></div><h2 class="location"><a href="#">Module coop_cancel</a></h2><div class="sidebar-elems"><section><ul class="block"><li><a href="#structs">Structs</a></li><li><a href="#functions">Functions</a></li></ul></section><h2><a href="../index.html">In crate cancel_safe_futures</a></h2></div></nav><div class="sidebar-resizer"></div><main><div class="width-limiter"><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><h1>Module <a href="../index.html">cancel_safe_futures</a>::<wbr><a class="mod" href="#">coop_cancel</a><button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><span class="out-of-band"><a class="src" href="../../src/cancel_safe_futures/coop_cancel.rs.html#1-279">source</a> · <button id="toggle-all-docs" title="collapse all docs">[<span>&#x2212;</span>]</button></span></div><span class="item-info"><div class="stab portability">Available on <strong>crate feature <code>std</code></strong> only.</div></span><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>A multi-producer, single-consumer channel for cooperative (explicit) cancellation.</p>
+<p>This is similar in nature to a <a href="../../tokio/runtime/task/abort/struct.AbortHandle.html" title="struct tokio::runtime::task::abort::AbortHandle"><code>tokio::task::AbortHandle</code></a>, except it uses a cooperative model
+for cancellation.</p>
+<h2 id="motivation"><a class="doc-anchor" href="#motivation">§</a>Motivation</h2>
+<p>Executors like Tokio support forcible cancellation for async tasks via facilities like
+<a href="../../tokio/runtime/task/join/struct.JoinHandle.html#method.abort" title="method tokio::runtime::task::join::JoinHandle::abort"><code>tokio::task::JoinHandle::abort</code></a>. However, this causes cancellations at any arbitrary await
+point. This is often not desirable because it can lead to invariant violations.</p>
+<p>For example, consider this code that consists of both the cancel-safe
+<a href="../../tokio/io/util/async_write_ext/trait.AsyncWriteExt.html#method.write_buf" title="method tokio::io::util::async_write_ext::AsyncWriteExt::write_buf"><code>AsyncWriteExt::write_buf</code></a> and some cancel-unsafe code:</p>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>bytes::Buf;
+<span class="kw">use </span>std::io::Cursor;
+<span class="kw">use </span>tokio::{io::AsyncWriteExt, sync::mpsc};
+
+<span class="kw">struct </span>DataWriter {
+    writer: tokio::fs::File,
+    bytes_written_channel: mpsc::Sender&lt;usize&gt;,
+}
+
+<span class="kw">impl </span>DataWriter {
+    <span class="kw">async fn </span>write(<span class="kw-2">&amp;mut </span><span class="self">self</span>, cursor: <span class="kw-2">&amp;mut </span>Cursor&lt;<span class="kw-2">&amp;</span>[u8]&gt;) -&gt; std::io::Result&lt;()&gt; {
+        <span class="comment">// Cursor&lt;&amp;[u8]&gt; implements the bytes::Buf trait, which is used by `write_buf`.
+        </span><span class="kw">while </span>cursor.has_remaining() {
+            <span class="kw">let </span>bytes_written = <span class="self">self</span>.writer.write_buf(cursor).<span class="kw">await</span><span class="question-mark">?</span>; <span class="comment">// (1)
+            </span><span class="self">self</span>.bytes_written_channel.send(bytes_written).<span class="kw">await</span>; <span class="comment">// (2)
+        </span>}
+
+        <span class="prelude-val">Ok</span>(())
+    }
+}</code></pre></div>
+<p>The invariant upheld by <code>DataWriter</code> is that if some bytes are written, the corresponding
+<code>bytes_written</code> is sent over <code>self.bytes_written_channel</code>. This means that cancelling at await
+point (1) is okay, but cancelling at await point (2) is not.</p>
+<p>If we use <a href="../../tokio/runtime/task/join/struct.JoinHandle.html#method.abort" title="method tokio::runtime::task::join::JoinHandle::abort"><code>tokio::task::JoinHandle::abort</code></a> to cancel the task, it is possible that the task is
+cancelled at await point (2), breaking the invariant. Instead, we can use cooperative
+cancellation with a <code>select!</code> loop.</p>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>bytes::Buf;
+<span class="kw">use </span>cancel_safe_futures::coop_cancel;
+<span class="kw">use </span>std::io::Cursor;
+<span class="kw">use </span>tokio::{io::AsyncWriteExt, sync::mpsc};
+
+<span class="kw">struct </span>DataWriter {
+    writer: tokio::fs::File,
+    bytes_written_channel: mpsc::Sender&lt;usize&gt;,
+    cancel_receiver: coop_cancel::Receiver&lt;()&gt;,
+}
+
+<span class="kw">impl </span>DataWriter {
+    <span class="kw">async fn </span>write(<span class="kw-2">&amp;mut </span><span class="self">self</span>, cursor: <span class="kw-2">&amp;mut </span>Cursor&lt;<span class="kw-2">&amp;</span>[u8]&gt;) -&gt; std::io::Result&lt;()&gt; {
+        <span class="kw">while </span>cursor.has_remaining() {
+            <span class="macro">tokio::select!</span> {
+                res = <span class="self">self</span>.writer.write_buf(cursor) =&gt; {
+                    <span class="kw">let </span>bytes_written = res<span class="question-mark">?</span>;
+                    <span class="self">self</span>.bytes_written_channel.send(bytes_written).<span class="kw">await</span>;
+                }
+                <span class="prelude-val">Some</span>(()) = <span class="self">self</span>.cancel_receiver.recv() =&gt; {
+                    <span class="comment">// A cancellation notice was sent over the
+                    // channel. Cancel here.
+                    </span><span class="macro">println!</span>(<span class="string">"cancelling!"</span>);
+                    <span class="kw">break</span>;
+                }
+            }
+        }
+
+        <span class="prelude-val">Ok</span>(())
+    }
+}</code></pre></div>
+<h2 id="attaching-a-cancel-message"><a class="doc-anchor" href="#attaching-a-cancel-message">§</a>Attaching a cancel message</h2>
+<p><a href="struct.Canceler.html#method.cancel" title="method cancel_safe_futures::coop_cancel::Canceler::cancel"><code>Canceler::cancel</code></a> can be used to send a message of any type <code>T</code> along with the cancellation
+event. This message is received via the <code>Some</code> variant of <a href="struct.Receiver.html#method.recv" title="method cancel_safe_futures::coop_cancel::Receiver::recv"><code>Receiver::recv</code></a>.</p>
+<p>For a given <a href="struct.Receiver.html" title="struct cancel_safe_futures::coop_cancel::Receiver"><code>Receiver</code></a>, only the first message sent via any corresponding <a href="struct.Canceler.html" title="struct cancel_safe_futures::coop_cancel::Canceler"><code>Canceler</code></a> is
+received. Subsequent calls to <a href="struct.Receiver.html#method.recv" title="method cancel_safe_futures::coop_cancel::Receiver::recv"><code>Receiver::recv</code></a> will always return <code>None</code>, no matter whether
+further cancellation messages are sent. (This can change in the future if there’s a good use
+case for it.)</p>
+<h2 id="notes"><a class="doc-anchor" href="#notes">§</a>Notes</h2>
+<p>This module implements “fan-in” cancellation – it supports many cancelers but only one
+receiver. For “fan-out” cancellation with one sender and many receivers, consider using the
+<a href="https://docs.rs/drain"><code>drain</code></a> crate. This module and <code>drain</code> can be combined: create a task
+that listens to a <a href="struct.Receiver.html" title="struct cancel_safe_futures::coop_cancel::Receiver"><code>Receiver</code></a>, and notify downstream receivers via <code>drain</code> in that task.</p>
+</div></details><h2 id="structs" class="section-header">Structs<a href="#structs" class="anchor">§</a></h2><ul class="item-table"><li><div class="item-name"><a class="struct" href="struct.Canceler.html" title="struct cancel_safe_futures::coop_cancel::Canceler">Canceler</a></div><div class="desc docblock-short">A cooperative cancellation sender.</div></li><li><div class="item-name"><a class="struct" href="struct.Receiver.html" title="struct cancel_safe_futures::coop_cancel::Receiver">Receiver</a></div><div class="desc docblock-short">A cooperative cancellation receiver.</div></li><li><div class="item-name"><a class="struct" href="struct.Waiter.html" title="struct cancel_safe_futures::coop_cancel::Waiter">Waiter</a></div><div class="desc docblock-short">A future which can be used to optionally block until a <a href="struct.Receiver.html" title="struct cancel_safe_futures::coop_cancel::Receiver"><code>Receiver</code></a> is dropped.</div></li></ul><h2 id="functions" class="section-header">Functions<a href="#functions" class="anchor">§</a></h2><ul class="item-table"><li><div class="item-name"><a class="fn" href="fn.new_pair.html" title="fn cancel_safe_futures::coop_cancel::new_pair">new_pair</a></div><div class="desc docblock-short">Creates and returns a cooperative cancellation pair.</div></li></ul></section></div></main></body></html>

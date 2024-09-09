@@ -1,0 +1,88 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Alternative futures adapters that are more cancellation-aware."><title>cancel_safe_futures - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-46f98efaafac5295.ttf.woff2,FiraSans-Regular-018c141bf0843ffd.woff2,FiraSans-Medium-8f9a781e4970d388.woff2,SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2,SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../static.files/rustdoc-c5d6553a23f1e5a6.css"><meta name="rustdoc-vars" data-root-path="../" data-static-root-path="../static.files/" data-current-crate="cancel_safe_futures" data-themes="" data-resource-suffix="" data-rustdoc-version="1.81.0 (eeb90cda1 2024-09-04)" data-channel="1.81.0" data-search-js="search-d234aafac6c221dd.js" data-settings-js="settings-4313503d2e1961c2.js" ><script src="../static.files/storage-118b08c4c78b968e.js"></script><script defer src="../crates.js"></script><script defer src="../static.files/main-d2fab2bf619172d3.js"></script><noscript><link rel="stylesheet" href="../static.files/noscript-df360f571f6edeae.css"></noscript><link rel="alternate icon" type="image/png" href="../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc mod crate"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="mobile-topbar"><button class="sidebar-menu-toggle" title="show sidebar"></button></nav><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../cancel_safe_futures/index.html">cancel_safe_futures</a><span class="version">0.1.5</span></h2></div><div class="sidebar-elems"><ul class="block"><li><a id="all-types" href="all.html">All Items</a></li></ul><section><ul class="block"><li><a href="#reexports">Re-exports</a></li><li><a href="#modules">Modules</a></li><li><a href="#macros">Macros</a></li></ul></section></div></nav><div class="sidebar-resizer"></div><main><div class="width-limiter"><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><h1>Crate <a class="mod" href="#">cancel_safe_futures</a><button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><span class="out-of-band"><a class="src" href="../src/cancel_safe_futures/lib.rs.html#1-145">source</a> · <button id="toggle-all-docs" title="collapse all docs">[<span>&#x2212;</span>]</button></span></div><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>Alternative futures adapters that are more cancellation-aware.</p>
+<h2 id="what-is-this-crate"><a class="doc-anchor" href="#what-is-this-crate">§</a>What is this crate?</h2>
+<p>This crate solves a few related but distinct problems:</p>
+<h3 id="1-cancel-safe-futures-adapters"><a class="doc-anchor" href="#1-cancel-safe-futures-adapters">§</a>1. Cancel-safe futures adapters</h3>
+<p>The <a href="https://docs.rs/futures/latest/futures/"><code>futures</code></a> library contains many adapters that
+make writing asynchronous Rust code more pleasant. However, some of those combinators make it
+hard to write code that can withstand cancellation in the case of timeouts, <code>select!</code> branches
+or similar.</p>
+<p>For a more detailed explanation, see the documentation for <a href="sink/trait.SinkExt.html#method.reserve" title="method cancel_safe_futures::sink::SinkExt::reserve"><code>SinkExt::reserve</code></a>.</p>
+<h4 id="example"><a class="doc-anchor" href="#example">§</a>Example</h4>
+<p>Attempt to send an item in a loop with a timeout:</p>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>cancel_safe_futures::prelude::<span class="kw-2">*</span>;
+<span class="kw">use </span>std::time::Duration;
+
+<span class="kw">let </span><span class="kw-2">mut </span>my_sink = <span class="comment">/* ... */</span>;
+
+<span class="comment">// This item is stored here and will be set to None once the loop exits successfully.
+</span><span class="kw">let </span><span class="kw-2">mut </span>item = <span class="prelude-val">Some</span>(<span class="string">"hello"</span>.to_owned());
+<span class="kw">let </span>do_flush = <span class="bool-val">false</span>;
+
+<span class="kw">while </span>item.is_some() {
+    <span class="kw">match </span>tokio::time::timeout(Duration::from_secs(<span class="number">10</span>), my_sink.reserve()).<span class="kw">await </span>{
+        <span class="prelude-val">Ok</span>(<span class="prelude-val">Ok</span>(permit)) =&gt; {
+            <span class="kw">let </span>item = item.take().unwrap();
+            <span class="kw">if </span>!do_flush {
+                <span class="comment">// permit.feed() feeds the item into the sink without flushing
+                // the sink afterwards. This is a synchronous method.
+                </span>permit.feed(item)<span class="question-mark">?</span>;
+            } <span class="kw">else </span>{
+                <span class="comment">// Alternatively, permit.send() writes the item into the sink
+                // synchronously, then returns a future which can be awaited to
+                // flush the sink.
+                </span>permit.send(item)<span class="question-mark">?</span>.<span class="kw">await</span><span class="question-mark">?</span>;
+            }
+        }
+        <span class="prelude-val">Ok</span>(<span class="prelude-val">Err</span>(error)) =&gt; <span class="kw">return </span><span class="prelude-val">Err</span>(error),
+        <span class="prelude-val">Err</span>(timeout_error) =&gt; <span class="kw">continue</span>,
+    }
+}
+</code></pre></div>
+<h3 id="2-then_try-adapters-that-dont-perform-cancellations"><a class="doc-anchor" href="#2-then_try-adapters-that-dont-perform-cancellations">§</a>2. <code>then_try</code> adapters that don’t perform cancellations</h3>
+<p>The futures and tokio libraries come with a number of <code>try_</code> adapters and macros, for example
+<a href="../tokio/macro.try_join.html" title="macro tokio::try_join"><code>tokio::try_join!</code></a>. These adapters have the property that if one of the futures under
+consideration fails, all other futures are cancelled.</p>
+<p>This is not always desirable and has led to correctness bugs (e.g. <a href="https://github.com/oxidecomputer/omicron/pull/3707">omicron PR
+3707</a>). To address this issue, this crate
+provides a set of <code>then_try</code> adapters and macros that behave like their <code>try_</code> counterparts,
+except that if one or more of the futures errors out, the others will still be run to
+completion.</p>
+<p>The <code>then_try</code> family includes:</p>
+<ul>
+<li><a href="macro.join_then_try.html" title="macro cancel_safe_futures::join_then_try"><code>join_then_try</code></a>: similar to <a href="../tokio/macro.try_join.html" title="macro tokio::try_join"><code>tokio::try_join</code></a>.</li>
+<li><a href="future/fn.join_all_then_try.html" title="fn cancel_safe_futures::future::join_all_then_try"><code>future::join_all_then_try</code></a>: similar to <a href="../futures_util/future/try_join_all/fn.try_join_all.html" title="fn futures_util::future::try_join_all::try_join_all"><code>futures::future::try_join_all</code></a>.</li>
+<li><a href="stream/trait.TryStreamExt.html" title="trait cancel_safe_futures::stream::TryStreamExt"><code>TryStreamExt</code></a>: contains alternative extension methods to <a href="../futures_util/stream/try_stream/trait.TryStreamExt.html" title="trait futures_util::stream::try_stream::TryStreamExt"><code>futures::stream::TryStreamExt</code></a>,
+such as <code>collect_then_try</code>.</li>
+</ul>
+<h4 id="example-1"><a class="doc-anchor" href="#example-1">§</a>Example</h4>
+<p>For a detailed example, see the documentation for the <a href="macro.join_then_try.html" title="macro cancel_safe_futures::join_then_try"><code>join_then_try</code></a> macro.</p>
+<h3 id="3-cancel-safe-mutexes"><a class="doc-anchor" href="#3-cancel-safe-mutexes">§</a>3. Cancel-safe mutexes</h3>
+<p>The <a href="../tokio/sync/mutex/struct.Mutex.html" title="struct tokio::sync::mutex::Mutex"><code>tokio::sync::Mutex</code></a> shipped with Tokio has resulted in many bugs in practice,
+particularly around cancellations.</p>
+<p>This crate provides an alternative mutex API, called <a href="sync/struct.RobustMutex.html" title="struct cancel_safe_futures::sync::RobustMutex"><code>RobustMutex</code></a>, that does not
+have those pitfalls. For more, see the documentation for <a href="sync/struct.RobustMutex.html" title="struct cancel_safe_futures::sync::RobustMutex"><code>RobustMutex</code></a>.</p>
+<h3 id="4-cooperative-cancellation"><a class="doc-anchor" href="#4-cooperative-cancellation">§</a>4. Cooperative cancellation</h3>
+<p>Executors like Tokio support forcible cancellation for async tasks via facilities like
+<a href="../tokio/runtime/task/join/struct.JoinHandle.html#method.abort" title="method tokio::runtime::task::join::JoinHandle::abort"><code>tokio::task::JoinHandle::abort</code></a>. However, this can cause cancellations at any arbitrary await
+point. If the future is in the middle of cancel-unsafe code, this can cause invariant violations
+or other issues.</p>
+<p>Instead, async cancellation can be done cooperatively: code can check for cancellation
+explicitly via <a href="../tokio/macro.select.html" title="macro tokio::select"><code>tokio::select!</code></a>. This crate provides the <a href="coop_cancel/index.html" title="mod cancel_safe_futures::coop_cancel"><code>coop_cancel</code></a> module that can be
+used to accomplish that goal.</p>
+<h4 id="example-2"><a class="doc-anchor" href="#example-2">§</a>Example</h4>
+<p>For a detailed example, see the documentation for <a href="coop_cancel/index.html" title="mod cancel_safe_futures::coop_cancel"><code>coop_cancel</code></a>.</p>
+<h2 id="notes"><a class="doc-anchor" href="#notes">§</a>Notes</h2>
+<p>This library is not complete: adapters and macros are added on an as-needed basis. If you need
+an adapter that is not yet implemented, please open an issue or a pull request.</p>
+<h2 id="optional-features"><a class="doc-anchor" href="#optional-features">§</a>Optional features</h2>
+<ul>
+<li><code>macros</code> (enabled by default): Enables macros.</li>
+<li><code>std</code> (enabled by default): Enables items that depend on <code>std</code>, including items that depend on
+<code>alloc</code>.</li>
+<li><code>alloc</code> (enabled by default): Enables items that depend on <code>alloc</code>.</li>
+<li><code>parking_lot</code>: Switches to <code>parking_lot</code>’s mutexes.</li>
+</ul>
+<p>No-std users must turn off default features while importing this crate.</p>
+</div></details><h2 id="reexports" class="section-header">Re-exports<a href="#reexports" class="anchor">§</a></h2><ul class="item-table"><li><div class="item-name" id="reexport.SinkExt"><code>pub use sink::<a class="trait" href="sink/trait.SinkExt.html" title="trait cancel_safe_futures::sink::SinkExt">SinkExt</a>;</code></div></li><li><div class="item-name" id="reexport.TryStreamExt"><code>pub use stream::<a class="trait" href="stream/trait.TryStreamExt.html" title="trait cancel_safe_futures::stream::TryStreamExt">TryStreamExt</a>;</code></div></li></ul><h2 id="modules" class="section-header">Modules<a href="#modules" class="anchor">§</a></h2><ul class="item-table"><li><div class="item-name"><a class="mod" href="coop_cancel/index.html" title="mod cancel_safe_futures::coop_cancel">coop_cancel</a><span class="stab portability" title="Available on crate feature `std` only"><code>std</code></span></div><div class="desc docblock-short">A multi-producer, single-consumer channel for cooperative (explicit) cancellation.</div></li><li><div class="item-name"><a class="mod" href="future/index.html" title="mod cancel_safe_futures::future">future</a></div><div class="desc docblock-short">Alternative adapters for asynchronous values.</div></li><li><div class="item-name"><a class="mod" href="prelude/index.html" title="mod cancel_safe_futures::prelude">prelude</a></div><div class="desc docblock-short">A “prelude” for crates using the <code>cancel-safe-futures</code> crate.</div></li><li><div class="item-name"><a class="mod" href="sink/index.html" title="mod cancel_safe_futures::sink">sink</a></div><div class="desc docblock-short">Alternative extensions for <a href="../futures_sink/trait.Sink.html" title="trait futures_sink::Sink"><code>Sink</code></a>.</div></li><li><div class="item-name"><a class="mod" href="stream/index.html" title="mod cancel_safe_futures::stream">stream</a></div><div class="desc docblock-short">Alternative adapters for asynchronous streams.</div></li><li><div class="item-name"><a class="mod" href="sync/index.html" title="mod cancel_safe_futures::sync">sync</a></div><div class="desc docblock-short">Alternative synchronization primitives that are more cancellation-aware.</div></li></ul><h2 id="macros" class="section-header">Macros<a href="#macros" class="anchor">§</a></h2><ul class="item-table"><li><div class="item-name"><a class="macro" href="macro.join_then_try.html" title="macro cancel_safe_futures::join_then_try">join_then_try</a></div><div class="desc docblock-short">Waits on multiple concurrent branches for <strong>all</strong> futures to complete, returning Ok(_) or an
+error.</div></li></ul></section></div></main></body></html>
