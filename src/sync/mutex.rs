@@ -209,7 +209,7 @@ impl<T: ?Sized> RobustMutex<T> {
     ///
     /// static LOCK: RobustMutex<i32> = RobustMutex::const_new(5);
     /// ```
-    #[cfg(all(feature = "parking_lot", not(all(loom, test)),))]
+    #[cfg(all(feature = "parking_lot", not(test)))]
     #[cfg_attr(doc_cfg, doc(cfg(feature = "parking_lot")))]
     pub const fn const_new(value: T) -> Self
     where

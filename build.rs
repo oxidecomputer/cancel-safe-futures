@@ -17,6 +17,8 @@ use std::env;
 include!("no_atomic_cas.rs");
 
 fn main() {
+    println!("cargo:rustc-check-cfg=cfg(futures_no_atomic_cas)");
+    println!("cargo:rustc-check-cfg=cfg(doc_cfg)");
     let target = match env::var("TARGET") {
         Ok(target) => target,
         Err(e) => {
