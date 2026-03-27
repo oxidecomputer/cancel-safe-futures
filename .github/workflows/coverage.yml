@@ -30,6 +30,6 @@ jobs:
       - name: Collect coverage data
         run:  ./scripts/commands.sh coverage
       - name: Upload coverage data to codecov
-        uses: codecov/codecov-action@eaaf4bedf32dbdc6b720b63067d99c4d77d6047d # v3
+        uses: codecov/codecov-action@57e3a136b779b570ffcdbf80b3bdc90e7fab3de2 # v6
         with:
           files: lcov.info, lcov-doctest.info
