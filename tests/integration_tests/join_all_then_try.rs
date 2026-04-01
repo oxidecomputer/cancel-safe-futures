@@ -19,7 +19,7 @@ async fn basic() {
 async fn iter_lifetime() {
     // In futures-rs version 0.1, this function would fail to typecheck due to an overly
     // conservative type parameterization of `TryJoinAll`.
-    fn sizes(bufs: Vec<&[u8]>) -> impl Future<Output = Result<Vec<usize>, ()>> {
+    fn sizes(bufs: Vec<&[u8]>) -> impl Future<Output = Result<Vec<usize>, ()>> + use<> {
         let iter = bufs.into_iter().map(|b| ok::<usize, ()>(b.len()));
         join_all_then_try(iter)
     }
