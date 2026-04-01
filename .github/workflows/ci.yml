@@ -38,7 +38,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest]
-        rust-version: ["1.64", stable]
+        rust-version: ["1.71", stable]
       fail-fast: false
     env:
       RUSTFLAGS: -D warnings

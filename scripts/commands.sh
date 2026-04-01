@@ -32,7 +32,7 @@ run_nextest() {
     check_cargo_hack
 
     echo_err "Running non-doc tests"
-    run_cargo_hack nextest run --all-targets
+    NEXTEST_NO_TESTS=pass run_cargo_hack nextest run --all-targets
 }
 
 run_miri() {
