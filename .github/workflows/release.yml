@@ -10,15 +10,21 @@ jobs:
   create-release:
     if: github.repository_owner == 'oxidecomputer'
     runs-on: ubuntu-latest
+    environment: release
+    permissions:
+      id-token: write     # Required for OIDC token exchange
+      contents: write     # Required for creating releases
     steps:
       - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4
         with:
           persist-credentials: false
+      - uses: rust-lang/crates-io-auth-action@v1
+        id: auth
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
       - run: cargo publish
         env:
-          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+          CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
       - uses: taiki-e/create-gh-release-action@8df4de6534ceacdaed10a08f73418ca751f31793 # v1
         with:
           changelog: CHANGELOG.md
