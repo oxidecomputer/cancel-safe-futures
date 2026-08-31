@@ -623,8 +623,8 @@ impl<'a, T: ?Sized> ActionPermit<'a, T> {
     /// process and unlocking the mutex once the block completes.
     ///
     /// In general, holding asynchronous locks across await points can lead to surprising
-    /// performance issues. It is strongly recommended that [`perform`](Self::perform) is used, or
-    /// that the code is rewritten to use message passing.
+    /// performance issues. It is strongly recommended that [`perform`][`Self::perform()`] be used,
+    /// or that the code be rewritten to use message passing.
     ///
     /// # Notes
     ///
@@ -632,12 +632,6 @@ impl<'a, T: ?Sized> ActionPermit<'a, T> {
     ///
     /// * The future returned by `action` panics.
     /// * The future returned by this async function is cancelled before being driven to completion.
-    ///
-    /// Due to [limitations in stable
-    /// Rust](https://kevincox.ca/2022/04/16/rust-generic-closure-lifetimes), this accepts a dynamic
-    /// [`BoxFuture`] rather than a generic future. Once [async
-    /// closures](https://rust-lang.github.io/async-fundamentals-initiative/roadmap/async_closures.html)
-    /// are stabilized, this will switch to them.
     ///
     /// # Examples
     ///
@@ -651,14 +645,11 @@ impl<'a, T: ?Sized> ActionPermit<'a, T> {
     ///     let mutex = RobustMutex::new(1);
     ///
     ///     let permit = mutex.lock().await.unwrap();
-    ///     permit.perform_async_boxed(|n| {
-    ///         async move {
-    ///             tokio::time::sleep(
-    ///                 std::time::Duration::from_millis(100),
-    ///             ).await;
-    ///             *n = 2;
-    ///         }
-    ///         .boxed()
+    ///     permit.perform_async(async move |n| {
+    ///         tokio::time::sleep(
+    ///             std::time::Duration::from_millis(100),
+    ///         ).await;
+    ///         *n = 2;
     ///     }).await;
     ///
     ///     // Check that the new value of the mutex is 2.
@@ -666,9 +657,9 @@ impl<'a, T: ?Sized> ActionPermit<'a, T> {
     ///     permit.perform(|n| assert_eq!(*n, 2));
     /// }
     /// ```
-    pub async fn perform_async_boxed<R, F>(mut self, action: F) -> R
+    pub async fn perform_async<R, F>(mut self, scoped_action: F) -> R
     where
-        F: for<'lock> FnOnce(&'lock mut T) -> BoxFuture<'lock, R>,
+        F: AsyncFnOnce(&mut T) -> R,
     {
         let poison_guard = self.poison.guard_assuming_no_poison();
         let mut poisoner = AsyncPoisoner {
@@ -681,38 +672,38 @@ impl<'a, T: ?Sized> ActionPermit<'a, T> {
         //   flags are set.
         // * be dropped without being driven to completion, in which case the cancel poison flag is
         //   set.
-        let ret = action(&mut *self.guard).await;
+        let ret = scoped_action(&mut *self.guard).await;
 
         // At this point, the future has completed.
         poisoner.terminated = true;
         ret
     }
 
+    #[deprecated(note = "Use `.perform_async()`  instead")]
     /// Runs a non-`Send` asynchronous block in the context of the guarded data, consuming the
     /// permit in the process and unlocking the mutex once the block completes.
     ///
-    /// This is a variant of [`perform_async_boxed`](Self::perform_async_boxed) that allows the
+    /// This is an outdated variant of [`.perform_async()`][`Self::perform_async()`] that requires
+    /// the `Future` returned by the callback to be `Send` and in return produces a `Send` future
+    /// (on the implicit condition that `F` be itself `Send` too).
+    pub async fn perform_async_boxed<R, F>(self, action: F) -> R
+    where
+        F: for<'lock> FnOnce(&'lock mut T) -> BoxFuture<'lock, R>,
+    {
+        Self::perform_async(self, async move |value| action(value).await).await
+    }
+
+    #[deprecated(note = "Use `.perform_async()`  instead")]
+    /// Runs a non-`Send` asynchronous block in the context of the guarded data, consuming the
+    /// permit in the process and unlocking the mutex once the block completes.
+    ///
+    /// This is a variant of [`perform_async_boxed`][`Self::perform_async_boxed()`] that allows the
     /// future to be non-`Send`.
-    pub async fn perform_async_boxed_local<R, F>(mut self, action: F) -> R
+    pub async fn perform_async_boxed_local<R, F>(self, action: F) -> R
     where
         F: for<'lock> FnOnce(&'lock mut T) -> LocalBoxFuture<'lock, R>,
     {
-        let poison_guard = self.poison.guard_assuming_no_poison();
-        let mut poisoner = AsyncPoisoner {
-            poison: self.poison,
-            poison_guard,
-            terminated: false,
-        };
-        // At this point, the future can:
-        // * panic, in which case both the panic and (since the future isn't complete) cancel poison
-        //   flags are set.
-        // * be dropped without being driven to completion, in which case the cancel poison flag is
-        //   set.
-        let ret = action(&mut *self.guard).await;
-
-        // At this point, the future has completed.
-        poisoner.terminated = true;
-        ret
+        Self::perform_async(self, async move |value| action(value).await).await
     }
 }
 
